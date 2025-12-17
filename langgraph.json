@@ -1,0 +1,9 @@
+{
+    "dependencies": [
+        "."
+    ],
+    "graphs": {
+        "draft_mail": "graph.graph:app"
+    },
+    "env": ".env"
+}
