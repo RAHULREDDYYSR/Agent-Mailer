@@ -10,3 +10,4 @@ class GraphState(TypedDict):
     cover_letter: dict
     feedback: str
     attachment_path: Optional[str]
+    context_job_description: Optional[str]

@@ -1,56 +1,70 @@
-# Agent Mailer: LangChain Deep Agent ✉️
+# ✉️ Agent Mailer - Intelligent Deep Agent System
 
-Agent Mailer is a sophisticated **Deep Agent** built with **LangChain** and **LangGraph**, designed to automate and enhance your job application process. Unlike simple template generators, this agent employs a graph-based state machine to reason, plan, and execute complex workflows with **Human-in-the-Loop (HITL)** control.
+**Agent Mailer** is a sophisticated **Human-in-the-Loop (HITL)** AI application designed to automate professional outreach. Built on the **Deep Agent** architecture, it leverages **LangChain**, **LangGraph**, and **LangSmith** to generate, refine, and dispatch hyper-personalized Emails, LinkedIn Messages, and Cover Letters.
 
 ## 🧠 Deep Agent Architecture
 
-This project implements a "Deep Agent" architecture where the application logic is not just a linear script but a cognitive graph. The agent:
-1.  **Perceives**: Analyzes Job Descriptions and your Resume (context retrieval).
-2.  **Reasons**: Decides the best approach for the specific outreach type (Email vs. LinkedIn vs. Cover Letter).
-3.  **Acts**: Generates high-quality drafts.
-4.  **Collaborates**: Pauses for human review and refinement before finalizing or sending.
+This system is not just a simple LLM wrapper; it is a **Multi-Agent System** guided by a cyclic state machine.
+
+### Core Components
+1.  **Deep Agents**: Specialized autonomous units responsible for specific tasks.
+    -   `content_generator`: Performs deep analysis of the Job Description (JD) to build a "Context" layer.
+    -   `drafters` (Email/LinkedIn/Cover Letter): Specialized agents that consume the Context and generate channel-specific drafts.
+2.  **LangGraph State Machine**: Orchestrates the flow of information. It defines the "Brain" of the application, managing state transitions between generation, review, and feedback loops.
+3.  **LangSmith Integration**:
+    -   **Prompt Management**: All system prompts (e.g., `email_drafter_prompt`) are version-controlled and pulled dynamically from LangSmith (`context_generator:f92e9e5f`), ensuring easy updates without code changes.
+    -   **Observability**: Traces every step of the agent's reasoning process.
+
+## 🔄 Agentic Workflow
+
+The application follows a generic cyclic graph structure. It uses **Conditionals** to route tasks and **Interrupts** for Human-in-the-Loop interaction.
+
+```mermaid
+graph TD
+    Start([Start]) --> Generator[Context Generator]
+    Generator --> Router{Draft Type?}
+    
+    Router -->|Email| EmailAgent[Email Drafter]
+    Router -->|LinkedIn| LIAgent[LinkedIn Drafter]
+    Router -->|Cover Letter| CLAgent[Cover Letter Drafter]
+    
+    EmailAgent --> Reviewer[Human Reviewer]
+    LIAgent --> Reviewer
+    CLAgent --> Reviewer
+    
+    Reviewer --> Check{Feedback?}
+    
+    Check -->|Request Changes| Router
+    Check -->|Approved| End([End/Send])
+    
+    style Start fill:#f9f,stroke:#333
+    style Reviewer fill:#bbf,stroke:#333
+    style End fill:#9f9,stroke:#333
+```
+
+### Key Logic
+1.  **Context Caching**: The system intelligently caches the `context` generated from the JD. Switching output types (e.g., Email -> LinkedIn) skips the expensive analysis step.
+2.  **HITL Loop**: The process pauses at the `Reviewer` node. The user can provide natural language feedback (e.g., "Make it more formal"). The state carries this feedback back to the drafting agent, which "remembers" the previous attempt and acts to correct it.
 
 ## 🚀 Key Features
 
--   **Human-in-the-Loop (HITL)**:
-    -   **Interactive Refinement**: The agent doesn't just output text; it collaborates with you. You can review drafts, provide natural language feedback (e.g., "Make it more professional" or "Mention my leadership experience"), and the agent will **iterate** on its work.
-    -   **Approval Workflows**: Critical actions like sending emails require your explicit approval, ensuring safety and control.
+-   **Multi-Modal Output**: Supports Emails, LinkedIn Messages, and Cover Letters.
+-   **Conversation-Driven UI**: Chat with your agent to refine drafts naturally.
+-   **Smart Attachments**: Drag-and-drop file support with automatic fallback to your default CV.
+-   **Direct Integration**: Sends emails directly via Gmail API tools.
 
--   **Multi-Channel Outreach**:
-    -   **Emails**: Professional, context-aware emails to hiring managers.
-    -   **LinkedIn Messages**: Optimized for networking and direct messaging.
-    -   **Cover Letters**: Comprehensive letters linking your CV details to the JD requirements.
-
--   **Context-Aware Intelligence**:
-    -   **Resume Integration**: Automatically extracts and utilizes skills and experiences from your uploaded resume (`RAHUL_Y_S_CV.pdf`).
-    -   **Job Description Analysis**: Tailors every message to the specific keywords and requirements of the target role.
-
--   **Tool Use**:
-    -   **Web Search**: Capable of searching the web for company details to hyper-personalize the content.
-    -   **Gmail Integration**: Can send emails directly via Gmail API upon your command.
-
-## 🛠️ Tech Stack
-
--   **Orchestration**: [LangChain](https://www.langchain.com/) & [LangGraph](https://langchain-ai.github.io/langgraph/) (Stateful orchestration).
--   **Package Manager**: [uv](https://github.com/astral-sh/uv) (Fast Python package installer and resolver).
--   **UI**: [Gradio](https://www.gradio.app/) (Interactive Dashboard).
--   **LLMs**: Support for Google Gemini and OpenAI models.
-
-## ⚙️ Setup & Installation
-
-This project uses **uv** for modern, fast dependency management.
+## 🛠️ Setup & Installation
 
 ### Prerequisites
-
 -   Python 3.10+
--   [uv](https://github.com/astral-sh/uv) installed (`curl -LsSf https://astral.sh/uv/install.sh | sh`).
+-   [uv](https://github.com/astral-sh/uv) (Fast Python package manager)
 
 ### Installation
 
 1.  **Clone the repository**:
     ```bash
     git clone <repository-url>
-    cd <repository-directory>
+    cd draft_mail
     ```
 
 2.  **Install dependencies**:
@@ -61,31 +75,46 @@ This project uses **uv** for modern, fast dependency management.
 3.  **Environment Setup**:
     Create a `.env` file in the root directory:
     ```env
-    GOOGLE_API_KEY=your_google_api_key
-    OPENAI_API_KEY=your_openai_api_key
-    # Add other keys as needed
+    OPENAI_API_KEY=sk-...
+    LANGCHAIN_API_KEY=lsv2-...
+    LANGCHAIN_TRACING_V2=true
+    LANGCHAIN_PROJECT=Agent-Mailer
+    EMAIL_USER=your_email@gmail.com
+    EMAIL_PASSWORD=your_app_password
     ```
 
 ## 🖥️ Usage
 
-Run the agent with `uv run`:
+Run the main application using **Streamlit**:
 
 ```bash
-uv run app.py
+uv run streamlit run app.py
 ```
 
-### Dashboard Workflow
-1.  **Launch**: Open the local URL (e.g., `http://127.0.0.1:7860`).
-2.  **Input**: Paste a Job Description.
+### Workflow
+1.  **Input**: Paste the Job Description in the sidebar.
+2.  **Select**: Choose your output type (Email, LinkedIn, Cover Letter).
 3.  **Collaborate**:
-    -   Click **Generate**.
-    -   Review the output in the "Draft Content" pane.
-    -   provide feedback in the "Refine Instructions" box and hit **Refine Draft**.
-4.  **Action**: Once satisfied, click **Send Email** to execute the final action.
+    -   **Review**: See the draft in the right-hand canvas.
+    -   **Refine**: Tell the agent "Mention my Python experience" in the feedback box.
+    -   **Edit**: Manually tweak the text if needed.
+4.  **Action**: Click **Send Email** (for emails) or **Approve** (for others) to finish.
 
 ## 📂 Project Structure
 
--   `graph/`: The brain of the agent. Contains `graph.py` (state machine), `nodes.py` (agent actions), and `chains.py` (LLM logic).
--   `utils/`: Tools for the agent (Gmail sender, Web Search).
--   `ui/`: Gradio frontend components.
--   `app.py`: Entry point for the application.
+```
+draft_mail/
+├── graph/                  # Core Agent Logic
+│   ├── graph.py            # LangGraph State Machine Definition
+│   ├── nodes.py            # Agent Functions & Tool Calls
+│   ├── chains.py           # LLM & Deep Agent Configuration
+│   ├── state.py            # GraphState TypedDict
+│   └── schemas.py          # Pydantic Output Schemas
+├── utils/                  # Helper Tools
+│   ├── email_sender_tool.py
+│   └── web_search_tool.py
+├── app.py                  # Main Streamlit Application (Entry Point)
+├── demo/                   # Assets & Visualizations
+│   └── graph.png           # Static workflow visualization
+└── pyproject.toml          # Dependency Definition
+```

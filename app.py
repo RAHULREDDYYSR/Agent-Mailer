@@ -1,232 +1,217 @@
-import gradio as gr
+import streamlit as st
 import uuid
-from graph.graph import app as graph_app
-from ui.components import CUSTOM_CSS, get_theme
-from langgraph.types import Command
+import os
+from dotenv import load_dotenv
+from graph.graph import app
+from utils.email_sender_tool import send_email
 
-# --- State Management ---
-def get_initial_session():
-    return {
-        "thread_id": str(uuid.uuid4()),
-        "draft_body": "",
-        "draft_metadata": {} 
-    }
+load_dotenv()
 
-def get_config(session):
-    return {"configurable": {"thread_id": session["thread_id"]}}
+# --------------------------------------------------
+# PAGE CONFIG
+# --------------------------------------------------
+st.set_page_config(
+    page_title="Agent Mailer",
+    page_icon="✉️",
+    layout="wide"
+)
 
-# --- Business Logic ---
+# --------------------------------------------------
+# GLOBAL STYLES
+# --------------------------------------------------
+st.markdown("""
+<style>
+html, body, [class*="css"] {
+    font-family: Inter, sans-serif;
+}
 
-def update_visibility(outreach_type):
-    """Updates the visibility of settings fields based on type."""
-    # Returns (recipient_row_update, subject_row_update)
-    if outreach_type == "email":
-        return gr.update(visible=True), gr.update(visible=True)
-    elif outreach_type == "linkedin_message":
-        return gr.update(visible=True), gr.update(visible=True) # Usually keeps subject/recipient for LI too, or maybe just recipient
-    elif outreach_type == "cover_letter":
-        # Cover letters usually don't have explicit Subject headers in the same way, 
-        # but often have recipient blocks. For simplicity, let's hide subject.
-        return gr.update(visible=False), gr.update(visible=False)
-    return gr.update(visible=True), gr.update(visible=True)
+h1 {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
 
-def generate_draft(job_desc, outreach_type, session):
-    if not job_desc.strip():
-        raise gr.Error("Please enter a Job Description.")
-    
-    config = get_config(session)
-    initial_state = {
-        "job_description": job_desc,
-        "type": outreach_type,
-        "feedback": "",
-        "email": {},
-        "linkedin_message": {},
-        "cover_letter": {},
-        "attachment_path": None
-    }
-    
-    # Stream Graph
-    events = []
-    try:
-        for event in graph_app.stream(initial_state, config, stream_mode="values"):
-            events.append(event)
-    except Exception as e:
-        raise gr.Error(f"Generation failed: {str(e)}")
-        
-    final_state = events[-1] if events else {}
-    
-    # Extract Content
-    recipient = ""
-    subject = ""
-    body = ""
-    
-    if outreach_type == "email" and final_state.get('email'):
-        data = final_state['email']
-        recipient = data.get('recipient', '')
-        subject = data.get('subject', '')
-        body = data.get('body', '')
-    elif outreach_type == "linkedin_message" and final_state.get('linkedin_message'):
-        data = final_state['linkedin_message']
-        recipient = data.get('recipient', '')
-        subject = data.get('subject', '')
-        body = data.get('body', '')
-    elif outreach_type == "cover_letter" and final_state.get('cover_letter'):
-        data = final_state['cover_letter']
-        body = data.get('body', '')
+.section-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 1.25rem;
+}
 
-    session["draft_body"] = body
-    session["draft_metadata"] = {"recipient": recipient, "subject": subject}
-    
-    # Return updates for UI: (recipient_val, subject_val, body_val, status_msg, session)
-    return recipient, subject, body, f"Draft generated for {outreach_type}!", session
+.primary-btn button {
+    height: 3rem;
+    font-weight: 600;
+}
+</style>
+""", unsafe_allow_html=True)
 
-def refine_draft(prompt, file_obj, current_body, current_recipient, current_subject, session):
-    if not prompt and not file_obj:
-        return current_body, "No feedback provided."
-        
-    config = get_config(session)
-    
-    # Update State with CURRENT UI values to preserve manual edits
-    current_state = {
-        "email": {
-            "recipient": current_recipient,
-            "subject": current_subject,
-            "body": current_body 
-        },
-        "feedback": prompt
-    }
-    
-    if file_obj:
-        current_state["attachment_path"] = file_obj.name
+# --------------------------------------------------
+# SESSION STATE
+# --------------------------------------------------
+if "thread_id" not in st.session_state:
+    st.session_state.thread_id = str(uuid.uuid4())
+if "generated" not in st.session_state:
+    st.session_state.generated = False
+if "gen_count" not in st.session_state:
+    st.session_state.gen_count = 0
 
-    graph_app.update_state(config, current_state)
-    
-    try:
-        events = list(graph_app.stream(Command(resume=prompt), config, stream_mode="values"))
-        final_state = events[-1] if events else {}
-        
-        new_body = ""
-        if final_state.get('email'):
-             new_body = final_state['email'].get('body')
-        
-        session["draft_body"] = new_body
-        return new_body, "Draft refined!"
-        
-    except Exception as e:
-        return current_body, f"Error: {str(e)}"
+def get_config():
+    return {"configurable": {"thread_id": st.session_state.thread_id}}
 
-def send_email(current_body, current_recipient, current_subject, file_obj, session):
-    config = get_config(session)
-    
-    current_state = {
-        "email": {
-            "recipient": current_recipient,
-            "subject": current_subject,
-            "body": current_body
-        },
-        "feedback": "send"
-    }
+def reset_app():
+    st.session_state.thread_id = str(uuid.uuid4())
+    st.session_state.generated = False
+    st.session_state.gen_count = 0
+    st.rerun()
 
-    if file_obj:
-        current_state["attachment_path"] = file_obj.name
-    
-    graph_app.update_state(config, current_state)
-    
-    try:
-        list(graph_app.stream(Command(resume="send"), config, stream_mode="values"))
-        return "✅ Email Sent Successfully!"
-    except Exception as e:
-        return f"❌ Send failed: {str(e)}"
+# --------------------------------------------------
+# HEADER
+# --------------------------------------------------
+st.title("✉️ Agent Mailer")
+st.caption("AI-powered job application drafting & outreach assistant")
 
+st.divider()
 
-# --- UI Layout ---
+# --------------------------------------------------
+# LAYOUT
+# --------------------------------------------------
+left, right = st.columns([1, 1.4], gap="large")
 
-with gr.Blocks(title="Agent Mailer", css=CUSTOM_CSS) as demo:
-    
-    session_state = gr.State(value=get_initial_session())
-    
-    with gr.Column(elem_classes=["main-header"]):
-        gr.Markdown("# ✉️ Agent Mailer")
-        gr.Markdown("Dashboard Mode")
-    
-    # 1. Inputs
-    with gr.Row():
-        with gr.Column(scale=2):
-            job_desc_input = gr.Textbox(label="Job Description", lines=4, placeholder="Paste JD here...")
-        with gr.Column(scale=1):
-            type_input = gr.Radio(
-                ["email", "cover_letter", "linkedin_message"], 
-                label="Outreach Type", 
-                value="email"
+# ==================================================
+# LEFT: CONFIGURATION
+# ==================================================
+with left:
+    st.markdown("### ⚙️ Configuration")
+
+    with st.container(border=True):
+        job_description = st.text_area(
+            "Job Description",
+            height=260,
+            placeholder="Paste the full job description here..."
+        )
+
+        output_type = st.radio(
+            "Output Type",
+            ["Email", "LinkedIn Message", "Cover Letter"],
+            horizontal=True
+        )
+
+        st.divider()
+
+        col_a, col_b = st.columns([3, 1])
+        with col_a:
+            if st.button("🚀 Generate Draft", type="primary", use_container_width=True):
+                if not job_description:
+                    st.warning("Please provide a job description.")
+                else:
+                    with st.spinner("Analyzing JD & generating draft..."):
+                        type_map = {
+                            "Email": "email",
+                            "LinkedIn Message": "linkedin_message",
+                            "Cover Letter": "cover_letter"
+                        }
+                        app.invoke(
+                            {
+                                "job_description": job_description,
+                                "type": type_map[output_type]
+                            },
+                            config=get_config()
+                        )
+                        st.session_state.generated = True
+                        st.session_state.gen_count += 1
+                        st.rerun()
+
+        with col_b:
+            if st.button("↺ Reset"):
+                reset_app()
+
+# ==================================================
+# RIGHT: DRAFT + ACTIONS
+# ==================================================
+with right:
+    st.markdown("### 📝 Draft Workspace")
+
+    config = get_config()
+    state = app.get_state(config)
+
+    if not st.session_state.generated or not state.values:
+        st.info("Draft will appear here after generation.")
+    else:
+        values = state.values
+        task_type = values.get("type")
+        k = st.session_state.gen_count
+
+        tabs = st.tabs(["📄 Edit Draft", "✨ Refine", "🚀 Actions"])
+
+        # ---------------- EDIT TAB ----------------
+        with tabs[0]:
+            if task_type == "email":
+                data = values.get("email", {})
+                to = st.text_input("To", data.get("recipient", ""), key=f"to_{k}")
+                subject = st.text_input("Subject", data.get("subject", ""), key=f"sub_{k}")
+                body = st.text_area("Body", data.get("body", ""), height=420, key=f"body_{k}")
+
+                uploaded = st.file_uploader("Attachment (optional)", key=f"up_{k}")
+                attachment_path = None
+
+                if uploaded:
+                    os.makedirs("temp_uploads", exist_ok=True)
+                    path = f"temp_uploads/{uploaded.name}"
+                    with open(path, "wb") as f:
+                        f.write(uploaded.getbuffer())
+                    attachment_path = os.path.abspath(path)
+
+                edited = {
+                    "recipient": to,
+                    "subject": subject,
+                    "body": body,
+                    "attachment_path": attachment_path
+                }
+
+            elif task_type == "linkedin_message":
+                data = values.get("linkedin_message", {})
+                to = st.text_input("Profile", data.get("recipient", ""), key=f"li_{k}")
+                body = st.text_area("Message", data.get("body", ""), height=420, key=f"li_body_{k}")
+                edited = {"recipient": to, "body": body}
+
+            else:
+                data = values.get("cover_letter", {})
+                body = st.text_area("Cover Letter", data.get("body", ""), height=520, key=f"cl_{k}")
+                edited = {"body": body}
+
+        # ---------------- REFINE TAB ----------------
+        with tabs[1]:
+            feedback = st.text_area(
+                "Refinement Instructions",
+                placeholder="Make it more concise, more formal, highlight GenAI work...",
+                height=160
             )
-            generate_btn = gr.Button("✨ Generate Draft", variant="primary", size="lg")
-            
-    gr.Markdown("---")
-    
-    # 2. Main Dashboard (Settings + Content)
-    with gr.Row():
-        # LEFT: Metadata Settings
-        with gr.Column(scale=1):
-            gr.Markdown("### Settings")
-            
-            # These rows toggle visibility
-            with gr.Group() as meta_group:
-                with gr.Row() as rec_row:
-                    recipient_input = gr.Textbox(label="Recipient", placeholder="e.g. Hiring Manager")
-                with gr.Row() as sub_row:
-                    subject_input = gr.Textbox(label="Subject Line", placeholder="e.g. Application for...")
-                    
-            status_box = gr.Textbox(label="Status", interactive=False)
+            if st.button("🔄 Apply Refinement"):
+                if feedback:
+                    with st.spinner("Refining draft..."):
+                        app.update_state(config, {"feedback": feedback})
+                        app.invoke(None, config=config)
+                        st.session_state.gen_count += 1
+                        st.rerun()
+                else:
+                    st.warning("Enter refinement instructions.")
 
-        # RIGHT: Draft Content
-        with gr.Column(scale=2):
-            gr.Markdown("### Draft Content")
-            body_input = gr.Textbox(
-                label="Message Body (Editable)", 
-                lines=20, 
-                interactive=True
-            )
-
-    # 3. Actions / Footer
-    with gr.Row():
-        with gr.Column(scale=4):
-            refine_input = gr.Textbox(
-                label="Refine Instructions", 
-                placeholder="Type instructions to refine the draft (e.g. 'Make it shorter')..."
-            )
-            file_input = gr.File(label="Attach File (for Context)")
-        with gr.Column(scale=1):
-            refine_btn = gr.Button("Refine Draft", variant="secondary")
-            send_btn = gr.Button("🚀 Send Email", variant="primary")
-
-    # --- Event Wiring ---
-    
-    # Visibility Toggle
-    type_input.change(
-        update_visibility,
-        inputs=[type_input],
-        outputs=[rec_row, sub_row]
-    )
-    
-    # Generation
-    generate_btn.click(
-        generate_draft,
-        inputs=[job_desc_input, type_input, session_state],
-        outputs=[recipient_input, subject_input, body_input, status_box, session_state]
-    )
-    
-    # Refinement
-    refine_btn.click(
-        refine_draft,
-        inputs=[refine_input, file_input, body_input, recipient_input, subject_input, session_state],
-        outputs=[body_input, status_box]
-    )
-    
-    # Send
-    send_btn.click(
-        send_email,
-        inputs=[body_input, recipient_input, subject_input, file_input, session_state],
-        outputs=[status_box]
-    )
-
-demo.launch(theme=get_theme(), css=CUSTOM_CSS)
+        # ---------------- ACTIONS TAB ----------------
+        with tabs[2]:
+            if task_type == "email":
+                if st.button("📤 Send Email", type="primary", use_container_width=True):
+                    with st.spinner("Sending email..."):
+                        atts = [edited["attachment_path"]] if edited.get("attachment_path") else []
+                        send_email.invoke({
+                            "recipient": edited["recipient"],
+                            "subject": edited["subject"],
+                            "body": edited["body"],
+                            "attachments": atts
+                        })
+                        app.update_state(config, {"feedback": "send"})
+                        app.invoke(None, config=config)
+                        st.success("Email sent successfully ✅")
+            else:
+                if st.button("✅ Approve & Finish", type="primary", use_container_width=True):
+                    app.update_state(config, {"feedback": "send"})
+                    app.invoke(None, config=config)
+                    st.success("Draft approved 🎉")
