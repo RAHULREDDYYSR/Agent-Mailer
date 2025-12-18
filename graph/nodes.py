@@ -25,7 +25,7 @@ def content_generator(state: GraphState) -> GraphState:
         return state
 
     print("Generating new context...")
-    prompt = client.pull_prompt("context_generator:f92e9e5f")
+    prompt = client.pull_prompt("context_generator:60af7c1c")
     messages = prompt.invoke({'job_description': state['job_description']}).to_messages()
     response = agent.invoke({'messages': messages})
     state['context'] = response['messages'][-1].content

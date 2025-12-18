@@ -164,7 +164,7 @@ if st.session_state.generated and current_state.values:
         st.markdown("#### 📎 Attachments")
         uploaded_file = st.file_uploader("Upload a file (Drag & Drop)", type=['pdf', 'docx', 'txt', 'png', 'jpg'], key=f"upload_{k_suffix}")
         
-        default_cv_path = r"C:\Users\rahul\work_space\LLM\langchain_deep_agents\draft_mail\agent-data\RAHUL_Y_S_CV.pdf"
+        default_cv_path = r"C:\Users\rahul\work_space\LLM\langchain_deep_agents\draft_mail\RAHUL_Y_S_CV.pdf"
         final_attachment_path = None
         
         if uploaded_file:
