@@ -2,6 +2,7 @@ from typing import TypedDict, List, Optional, Dict, Literal
 
 class GraphState(TypedDict):
     '''Defines the state of the graph'''
+    user_context: str
     job_description: str
     context: str
     type: Literal['email', 'cover_letter','linkedin_message']

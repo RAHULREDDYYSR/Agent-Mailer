@@ -8,7 +8,7 @@ from utils.web_search_tool import internet_search
 
 
 
-llm = ChatOpenAI(model_name="gpt-4.1-nano-2025-04-14")
+llm = ChatOpenAI(model_name="gpt-4.1-mini")
 
 agent = create_deep_agent(
     tools=[internet_search],

@@ -18,6 +18,7 @@ def content_generator(state: GraphState) -> GraphState:
     
     current_jd = state.get('job_description', '').strip()
     cached_jd = state.get('context_job_description', '').strip()
+    user_context = state.get('user_context', '').strip()
     
     # Check if we can reuse the context
     if state.get('context') and current_jd == cached_jd and current_jd:
@@ -25,8 +26,8 @@ def content_generator(state: GraphState) -> GraphState:
         return state
 
     print("Generating new context...")
-    prompt = client.pull_prompt("context_generator:60af7c1c")
-    messages = prompt.invoke({'job_description': state['job_description']}).to_messages()
+    prompt = client.pull_prompt("context_generator:89c5d81e")
+    messages = prompt.invoke({'job_description': state['job_description'], 'user_context': user_context}).to_messages()
     response = agent.invoke({'messages': messages})
     state['context'] = response['messages'][-1].content
     

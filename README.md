@@ -2,6 +2,11 @@
 
 **Agent Mailer** is a sophisticated **Human-in-the-Loop (HITL)** AI application designed to automate professional outreach. Built on the **Deep Agent** architecture, it leverages **LangChain**, **LangGraph**, and **LangSmith** to generate, refine, and dispatch hyper-personalized Emails, LinkedIn Messages, and Cover Letters.
 
+## ✨ What's New
+- **User Context from Uploads**: Upload personal files (PDF, TXT, MD) to build a per-session cached user context used by agents to personalize drafts.
+- **Attachments & SMTP Sending**: Attach files to outgoing emails and send directly via SMTP (configure `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_USER` / `EMAIL_PASSWORD`).
+- **Split View Streamlit App**: Use `streamlit_app3.py` for a split-view UI that supports uploads, preview, refining via feedback, and sending emails directly from the interface.
+
 ## 🧠 Deep Agent Architecture
 
 This system is not just a simple LLM wrapper; it is a **Multi-Agent System** guided by a cyclic state machine.
@@ -50,8 +55,9 @@ graph TD
 
 -   **Multi-Modal Output**: Supports Emails, LinkedIn Messages, and Cover Letters.
 -   **Conversation-Driven UI**: Chat with your agent to refine drafts naturally.
--   **Smart Attachments**: Drag-and-drop file support with automatic fallback to your default CV.
--   **Direct Integration**: Sends emails directly via Gmail API tools.
+-   **User Context from Uploads**: Upload PDFs / TXT / MD files (CVs, notes) to provide personal data that personalizes generated drafts.
+-   **Attachments & Sending**: Attach files to outgoing emails; the app sends messages using a configurable SMTP tool (`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD`). Attachments are transmitted along with the message.
+-   **Split View App**: The split-view Streamlit app (`streamlit_app3.py`) supports uploading, previewing drafts, refining via feedback, and sending emails directly from the UI.
 
 ## 🛠️ Setup & Installation
 
@@ -79,16 +85,18 @@ graph TD
     LANGCHAIN_API_KEY=lsv2-...
     LANGCHAIN_TRACING_V2=true
     LANGCHAIN_PROJECT=Agent-Mailer
-    EMAIL_USER=your_email@gmail.com
-    EMAIL_PASSWORD=your_app_password
-    ```
 
-## 🖥️ Usage
-
-Run the main application using **Streamlit**:
+# SMTP (required for sending emails via the app)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=465        # 465 for SSL, 587 for STARTTLS
+Run the main Streamlit application (split view with uploads and send) using:
 
 ```bash
-uv run streamlit run app.py
+# If using uv (recommended)
+uv run streamlit run streamlit_app3.py
+
+# Or directly with streamlit
+streamlit run streamlit_app3.py
 ```
 
 ### Workflow
@@ -103,18 +111,49 @@ uv run streamlit run app.py
 ## 📂 Project Structure
 
 ```
-draft_mail/
-├── graph/                  # Core Agent Logic
-│   ├── graph.py            # LangGraph State Machine Definition
-│   ├── nodes.py            # Agent Functions & Tool Calls
-│   ├── chains.py           # LLM & Deep Agent Configuration
-│   ├── state.py            # GraphState TypedDict
-│   └── schemas.py          # Pydantic Output Schemas
-├── utils/                  # Helper Tools
-│   ├── email_sender_tool.py
-│   └── web_search_tool.py
-├── app.py                  # Main Streamlit Application (Entry Point)
-├── demo/                   # Assets & Visualizations
-│   └── graph.png           # Static workflow visualization
-└── pyproject.toml          # Dependency Definition
+Agent-Mailer/
+├── app.py                      # Legacy Streamlit app (entry point variant)
+├── main.py                     # Optional launcher / quick tests
+├── streamlit_app.py            # Streamlit app variant
+├── streamlit_app1.py           # Alternate streamlit examples
+├── streamlit_app2.py
+├── streamlit_app3.py           # Recommended split-view UI (uploads, preview, send)
+├── langgraph.json              # LangGraph definition and configuration
+├── README.md
+├── pyproject.toml              # Project metadata & dependencies
+├── demo/                       # Demo assets & visualizations
+│   └── graph.png
+├── graph/                      # Core agent logic & LangGraph implementation
+│   ├── __init__.py
+│   ├── graph.py                # LangGraph state machine and orchestration
+│   ├── nodes.py                # Node handler functions and tool calls
+│   ├── chains.py               # LLM chains / agent configurations
+│   ├── state.py                # Typed state and schemas for the graph
+│   └── schemas.py              # Pydantic output schemas
+├── utils/                      # Helper utilities and tools
+│   ├── __init__.py
+│   ├── context_builder.py      # Build per-session user context from uploads
+│   ├── file_parser.py          # Parse PDF, TXT, MD files (extend for DOCX)
+│   ├── email_sender_tool.py    # SMTP email sending with attachment support
+│   └── web_search_tool.py      # Web search helper (used by agents)
+└── user_data/                  # Runtime-created per-session user context files
+    └── <session-id>/user_context.txt
 ```
+
+## ⚠️ Notes & Known Issues
+
+## ⚠️ Notes & Known Issues
+
+- **Supported upload types**: PDF, TXT, and MD are parsed by `utils/file_parser.py`. The UI currently allows `docx` uploads but `docx` parsing is not implemented yet and will raise an error — consider converting `.docx` files to PDF or TXT for now, or ask to add `python-docx` support.
+- **Default CV path**: The app uses a fallback `default_cv_path` that is currently hard-coded in `streamlit_app3.py` to an absolute Windows path. It's recommended to upload attachments explicitly or change the code to point to your local CV.
+- **Email sending**: Ensure `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, and `EMAIL_PASSWORD` are set in `.env`. For Gmail accounts with 2FA enable an App Password.
+
+## 🔧 Testing the email tool
+
+You can test SMTP by running:
+
+```bash
+python utils/email_sender_tool.py
+```
+
+after setting the required env variables — the script will attempt to send a test email if `EMAIL_USER` is set.

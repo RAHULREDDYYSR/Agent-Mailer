@@ -4,6 +4,8 @@ import os
 from dotenv import load_dotenv
 from graph.graph import app
 from utils.email_sender_tool import send_email
+from utils.file_parser import parse_file
+from utils.context_builder import build_user_context
 
 load_dotenv()
 
@@ -53,6 +55,8 @@ if "generated" not in st.session_state:
     st.session_state.generated = False
 if "gen_count" not in st.session_state:
     st.session_state.gen_count = 0
+if "user_context" not in st.session_state:
+    st.session_state.user_context = None
 
 def get_config():
     return {"configurable": {"thread_id": st.session_state.thread_id}}
@@ -61,7 +65,45 @@ def reset_app():
     st.session_state.thread_id = str(uuid.uuid4())
     st.session_state.generated = False
     st.session_state.gen_count = 0
+    st.session_state.user_context = None
     st.rerun()
+
+# --------------------------------------------------
+# SIDEBAR: USER CONTEXT
+# --------------------------------------------------
+with st.sidebar:
+    st.title("⚙️ User Context")
+
+    uploaded_files = st.file_uploader(
+        "Upload your personal files (Resume, Projects, Notes)",
+        type=["pdf", "txt", "md", "docx"],
+        accept_multiple_files=True
+    )
+
+    if uploaded_files:
+        with st.spinner("📂 Processing personal files..."):
+            user_id = st.session_state.thread_id
+            base_dir = f"user_data/{user_id}"
+            raw_dir = os.path.join(base_dir, "raw_uploads")
+            os.makedirs(raw_dir, exist_ok=True)
+
+            parsed_texts = []
+            for file in uploaded_files:
+                file_path = os.path.join(raw_dir, file.name)
+                with open(file_path, "wb") as f:
+                    f.write(file.getbuffer())
+
+                parsed_texts.append(parse_file(file_path))
+
+            context_path = build_user_context(user_id, parsed_texts)
+            with open(context_path, "r", encoding="utf-8") as f:
+                st.session_state.user_context = f.read()
+
+            st.success("✅ User context created & cached")
+
+    st.markdown("---")
+    if st.button("↺ Reset"):
+        reset_app()
 
 # --------------------------------------------------
 # HEADER
@@ -102,6 +144,8 @@ with left:
             if st.button("🚀 Generate Draft", type="primary", use_container_width=True):
                 if not job_description:
                     st.warning("Please provide a job description.")
+                elif not st.session_state.user_context:
+                    st.warning("Please upload personal files to build user context.")
                 else:
                     with st.spinner("Analyzing JD & generating draft..."):
                         type_map = {
@@ -112,7 +156,8 @@ with left:
                         app.invoke(
                             {
                                 "job_description": job_description,
-                                "type": type_map[output_type]
+                                "type": type_map[output_type],
+                                "user_context": st.session_state.user_context
                             },
                             config=get_config()
                         )

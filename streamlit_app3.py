@@ -4,6 +4,8 @@ import os
 from dotenv import load_dotenv
 from graph.graph import app
 from utils.email_sender_tool import send_email
+from utils.file_parser import parse_file
+from utils.context_builder import build_user_context
 
 # Load environment variables
 load_dotenv()
@@ -17,6 +19,8 @@ if "generated" not in st.session_state:
     st.session_state.generated = False
 if "gen_count" not in st.session_state:
     st.session_state.gen_count = 0
+if "user_context" not in st.session_state:
+    st.session_state.user_context = None
 
 def get_config():
     return {"configurable": {"thread_id": st.session_state.thread_id}}
@@ -25,7 +29,33 @@ def reset_session():
     st.session_state.thread_id = str(uuid.uuid4())
     st.session_state.generated = False
     st.session_state.gen_count = 0
+    st.session_state.user_context = None
     st.rerun()
+
+# Sidebar for user context
+with st.sidebar:
+    st.title("⚙️ User Context")
+    uploaded_files = st.file_uploader(
+        "Upload personal files (pdf, txt, md, docx)",
+        type=["pdf", "txt", "md", "docx"],
+        accept_multiple_files=True
+    )
+    if uploaded_files:
+        with st.spinner("📂 Processing personal files..."):
+            user_id = st.session_state.thread_id
+            base_dir = f"user_data/{user_id}"
+            raw_dir = os.path.join(base_dir, "raw_uploads")
+            os.makedirs(raw_dir, exist_ok=True)
+            parsed_texts = []
+            for file in uploaded_files:
+                file_path = os.path.join(raw_dir, file.name)
+                with open(file_path, "wb") as f:
+                    f.write(file.getbuffer())
+                parsed_texts.append(parse_file(file_path))
+            context_path = build_user_context(user_id, parsed_texts)
+            with open(context_path, "r", encoding="utf-8") as f:
+                st.session_state.user_context = f.read()
+            st.success("✅ User context created & cached")
 
 # Layout
 col_left, col_right = st.columns([1, 1], gap="large")
@@ -48,16 +78,19 @@ with col_left:
             reset_session()
             
     if generate_btn and job_description:
-        with st.status("Thinking...", expanded=True):
-            st.write(" analyzing job description...")
-            type_mapping = {"Email": "email", "LinkedIn Message": "linkedin_message", "Cover Letter": "cover_letter"}
-            initial_state = {"job_description": job_description, "type": type_mapping[output_type]}
-            config = get_config()
-            app.invoke(initial_state, config=config)
-            st.session_state.generated = True
-            st.session_state.gen_count += 1
-            st.write(" done!")
-            st.rerun()
+        if not st.session_state.user_context:
+            st.warning("Please upload personal files to build user context.")
+        else:
+            with st.status("Thinking...", expanded=True):
+                st.write(" analyzing job description...")
+                type_mapping = {"Email": "email", "LinkedIn Message": "linkedin_message", "Cover Letter": "cover_letter"}
+                initial_state = {"job_description": job_description, "type": type_mapping[output_type], "user_context": st.session_state.user_context}
+                config = get_config()
+                app.invoke(initial_state, config=config)
+                st.session_state.generated = True
+                st.session_state.gen_count += 1
+                st.write(" done!")
+                st.rerun()
 
 # --- RIGHT COLUMN: OUTPUT ---
 with col_right:

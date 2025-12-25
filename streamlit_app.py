@@ -2,261 +2,260 @@ import streamlit as st
 import uuid
 import os
 from dotenv import load_dotenv
+
 from graph.graph import app
 from utils.email_sender_tool import send_email
+from utils.file_parser import parse_file
+from utils.context_builder import build_user_context
 
-# Load environment variables
+# --------------------------------------------------
+# ENV SETUP
+# --------------------------------------------------
 load_dotenv()
 
-# Design and Layout Configuration
-st.set_page_config(page_title="Agent Mailer", page_icon="✉️", layout="wide")
+st.set_page_config(
+    page_title="Agent Mailer",
+    page_icon="✉️",
+    layout="wide"
+)
 
-# Custom CSS for Industrial/Clean Look
+# --------------------------------------------------
+# GLOBAL STYLES
+# --------------------------------------------------
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
-    
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
-    }
-    
-    .stTextArea textarea {
-        border-radius: 8px;
-    }
-    
-    .stButton button {
-        border-radius: 6px;
-        font-weight: 600;
-    }
-    
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-    }
-    
-    h1, h2, h3 {
-        font-weight: 600;
-        letter-spacing: -0.02em;
-    }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+h1, h2, h3 {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.stButton button {
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# Session State Initialization
+# --------------------------------------------------
+# SESSION STATE
+# --------------------------------------------------
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = str(uuid.uuid4())
 
 if "generated" not in st.session_state:
     st.session_state.generated = False
 
-if "current_view_state" not in st.session_state:
-    st.session_state.current_view_state = None  # To store the graph state object
+if "gen_count" not in st.session_state:
+    st.session_state.gen_count = 0
+
+if "user_context" not in st.session_state:
+    st.session_state.user_context = None
+
 
 def get_config():
     return {"configurable": {"thread_id": st.session_state.thread_id}}
 
+
 def reset_session():
     st.session_state.thread_id = str(uuid.uuid4())
     st.session_state.generated = False
-    st.session_state.current_view_state = None
+    st.session_state.gen_count = 0
+    st.session_state.user_context = None
     st.rerun()
 
-# --- SIDEBAR ---
+
+# --------------------------------------------------
+# SIDEBAR
+# --------------------------------------------------
 with st.sidebar:
-    st.title("⚙️ Operations")
+    st.title("⚙️ User Context")
+
+    uploaded_files = st.file_uploader(
+        "Upload your personal files (Resume, Projects, Notes)",
+        type=["pdf", "txt", "md", "docx"],
+        accept_multiple_files=True
+    )
+
+    if uploaded_files:
+        with st.spinner("📂 Processing personal files..."):
+            user_id = st.session_state.thread_id
+            base_dir = f"user_data/{user_id}"
+            raw_dir = os.path.join(base_dir, "raw_uploads")
+            os.makedirs(raw_dir, exist_ok=True)
+
+            parsed_texts = []
+
+            for file in uploaded_files:
+                file_path = os.path.join(raw_dir, file.name)
+                with open(file_path, "wb") as f:
+                    f.write(file.getbuffer())
+
+                parsed_texts.append(parse_file(file_path))
+
+            context_path = build_user_context(user_id, parsed_texts)
+
+            with open(context_path, "r", encoding="utf-8") as f:
+                st.session_state.user_context = f.read()
+
+            st.success("✅ User context created & cached")
+
     st.markdown("---")
-    if st.button("🗑️ Clear History & Reset", use_container_width=True):
+
+    if st.button("🗑️ Reset Session", use_container_width=True):
         reset_session()
-    
-    st.markdown("### ℹ️ About")
-    st.info("Agent Mailer uses LangGraph to draft and refine professional communications.")
 
+    st.info(
+        "Agent Mailer uses a Human-in-the-Loop LangGraph workflow. "
+        "User files are parsed once and reused across generations."
+    )
 
-# --- MAIN CONTENT ---
+# --------------------------------------------------
+# MAIN HEADER
+# --------------------------------------------------
 st.title("✉️ Agent Mailer")
-st.markdown("### Intelligent Job Application Assistant")
+st.caption("AI-powered job application drafting & outreach assistant")
 
-# Input Section
-with st.container():
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        job_description = st.text_area(
-            "📋 Paste Job Description Here", 
-            height=200, 
-            placeholder="Paste the full job description or relevant context..."
-        )
-    
-    with col2:
-        st.markdown("### 🎯 Output Type")
-        output_type = st.radio(
-            "Select the type of draft to generate:",
-            ["Email", "LinkedIn Message", "Cover Letter"],
-            key="type_selector"
-        )
-        
-        generate_btn = st.button("🚀 Generate Draft", use_container_width=True, type="primary")
+st.divider()
 
-# Generation Logic
-if generate_btn and job_description:
-    with st.spinner("🤖 Analyzing and Drafting..."):
-        # Map UI selection to graph keys
-        # Map UI selection to graph keys
-        type_mapping = {
-            "Email": "email",
-            "LinkedIn Message": "linkedin_message",
-            "Cover Letter": "cover_letter"
-        }
-        
-        initial_state = {
-            "job_description": job_description,
-            "type": type_mapping[output_type]
-        }
-            
-        # Run graph until interruption
-        # We assume the graph has been compiled with interrupt_before=['reviewer']
-        # We need to iterate stream to get to the interrupt
-        # using invoke won't stop correctly for checking, stream is better or invoke with proper config
-        
-        # Invoking start
-        config = get_config()
-        # Clean start requires new thread usually, but we reuse for session
-        
-        # We use app.invoke but we expect it to stop. 
-        # Actually app.invoke runs to completion or interrupt.
-        final_state = app.invoke(initial_state, config=config)
-        
-        st.session_state.generated = True
-        st.rerun()
+# --------------------------------------------------
+# INPUT SECTION
+# --------------------------------------------------
+col_left, col_right = st.columns([2, 1])
 
-# --- DISPLAY & REFINE SECTION ---
+with col_left:
+    job_description = st.text_area(
+        "📋 Job Description",
+        height=220,
+        placeholder="Paste the full job description here..."
+    )
 
-# Check current state of graph
+with col_right:
+    st.markdown("### 🎯 Output Type")
+    output_type = st.radio(
+        "Select draft type",
+        ["Email", "LinkedIn Message", "Cover Letter"],
+        horizontal=False
+    )
+
+    generate_btn = st.button("🚀 Generate Draft", type="primary", use_container_width=True)
+
+# --------------------------------------------------
+# GENERATION LOGIC
+# --------------------------------------------------
+if generate_btn:
+    if not job_description:
+        st.warning("Please provide a job description.")
+    elif not st.session_state.user_context:
+        st.warning("Please upload personal files to build user context.")
+    else:
+        with st.spinner("🤖 Generating draft..."):
+            type_map = {
+                "Email": "email",
+                "LinkedIn Message": "linkedin_message",
+                "Cover Letter": "cover_letter"
+            }
+
+            initial_state = {
+                "job_description": job_description,
+                "type": type_map[output_type],
+                "user_context": st.session_state.user_context
+            }
+
+            app.invoke(initial_state, config=get_config())
+
+            st.session_state.generated = True
+            st.session_state.gen_count += 1
+            st.rerun()
+
+# --------------------------------------------------
+# OUTPUT SECTION
+# --------------------------------------------------
 config = get_config()
-current_state = app.get_state(config)
+state = app.get_state(config)
 
-if "gen_count" not in st.session_state:
-    st.session_state.gen_count = 0
+if not st.session_state.generated or not state.values:
+    st.info("Generated draft will appear here.")
+else:
+    values = state.values
+    task_type = values.get("type")
+    k = st.session_state.gen_count
 
-if st.session_state.generated and current_state.values:
-    state_values = current_state.values
-    task_type = state_values.get("type", "email")
-    
-    st.markdown("---")
-    st.subheader(f"📝 {output_type} Draft")
-    
-    # Dynamic Editor Layout
-    edited_content = {}
-    
-    # Use gen_count in keys to force refresh on new generation
-    k_suffix = st.session_state.gen_count
-    
-    if task_type == 'email':
-        email_data = state_values.get('email', {})
-        
-        col_meta, col_space = st.columns([3, 1])
-        with col_meta:
-            recipient = st.text_input("To:", value=email_data.get('recipient', ''), key=f"email_to_{k_suffix}")
-            subject = st.text_input("Subject:", value=email_data.get('subject', ''), key=f"email_sub_{k_suffix}")
+    st.divider()
+    st.subheader("📝 Draft Workspace")
 
-        body = st.text_area("Body:", value=email_data.get('body', ''), height=400, key=f"email_body_{k_suffix}")
-        
-        # Attachment Logic
-        st.markdown("#### 📎 Attachments")
-        uploaded_file = st.file_uploader("Upload a file (Drag & Drop)", type=['pdf', 'docx', 'txt', 'png', 'jpg'], key=f"upload_{k_suffix}")
-        
-        default_cv_path = r"C:\Users\rahul\work_space\LLM\langchain_deep_agents\draft_mail\RAHUL_Y_S_CV.pdf"
-        final_attachment_path = None
-        
-        if uploaded_file:
-            # Save uploaded file temporarily
-            upload_dir = "temp_uploads"
-            os.makedirs(upload_dir, exist_ok=True)
-            file_path = os.path.join(upload_dir, uploaded_file.name)
-            with open(file_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-            final_attachment_path = os.path.abspath(file_path)
-            st.success(f"Attached: {uploaded_file.name}")
+    tabs = st.tabs(["✏️ Edit Draft", "🔄 Refine", "🚀 Actions"])
+
+    # ---------------- EDIT TAB ----------------
+    with tabs[0]:
+        if task_type == "email":
+            data = values.get("email", {})
+            to = st.text_input("To", data.get("recipient", ""), key=f"to_{k}")
+            subject = st.text_input("Subject", data.get("subject", ""), key=f"sub_{k}")
+            body = st.text_area("Body", data.get("body", ""), height=420, key=f"body_{k}")
+
+            edited = {
+                "recipient": to,
+                "subject": subject,
+                "body": body
+            }
+
+        elif task_type == "linkedin_message":
+            data = values.get("linkedin_message", {})
+            to = st.text_input("LinkedIn Profile", data.get("recipient", ""), key=f"li_{k}")
+            body = st.text_area("Message", data.get("body", ""), height=350, key=f"li_body_{k}")
+
+            edited = {"recipient": to, "body": body}
+
         else:
-            final_attachment_path = default_cv_path
-            if os.path.exists(default_cv_path):
-                st.info(f"Using default CV: {os.path.basename(default_cv_path)}")
+            data = values.get("cover_letter", {})
+            body = st.text_area("Cover Letter", data.get("body", ""), height=520, key=f"cl_{k}")
+            edited = {"body": body}
+
+    # ---------------- REFINE TAB ----------------
+    with tabs[1]:
+        feedback = st.text_area(
+            "Refinement Instructions",
+            placeholder="Make it more concise, highlight GenAI work, adjust tone...",
+            height=160
+        )
+
+        if st.button("🔄 Apply Refinement"):
+            if feedback:
+                with st.spinner("Refining draft..."):
+                    app.update_state(config, {"feedback": feedback})
+                    app.invoke(None, config=config)
+                    st.session_state.gen_count += 1
+                    st.rerun()
             else:
-                st.warning(f"Default CV not found at: {default_cv_path}")
-        
-        edited_content = {"recipient": recipient, "subject": subject, "body": body, "attachment_path": final_attachment_path}
-        
-    elif task_type == 'linkedin_message':
+                st.warning("Enter refinement instructions.")
 
-        linkedin_data = state_values.get('linkedin_message', {})
-        recipient = st.text_input("To (Profile):", value=linkedin_data.get('recipient', ''), key=f"li_to_{k_suffix}")
-        body = st.text_area("Message:", value=linkedin_data.get('body', ''), height=300, key=f"li_body_{k_suffix}")
-        
-        edited_content = {"recipient": recipient, "body": body}
-        
-    elif task_type == 'cover_letter':
-        cl_data = state_values.get('cover_letter', {})
-        body = st.text_area("Cover Letter Content:", value=cl_data.get('body', ''), height=600, key=f"cl_body_{k_suffix}")
-        
-        edited_content = {"body": body}
-
-    # Action Toolbar
-    st.markdown("### 🛠️ Review & Actions")
-    
-    col_feedback, col_actions = st.columns([2, 1])
-    
-    with col_feedback:
-        feedback = st.text_area("Feedback / Refine Instructions", placeholder="E.g., Make it more formal, emphasize my Python skills...", height=100, key=f"feedback_{k_suffix}")
-        
-    with col_actions:
-        st.write("") # Spacer
-        st.write("") # Spacer
-        
-        col_btn1, col_btn2 = st.columns(2)
-        
-        with col_btn1:
-            if st.button("🔄 Refine", use_container_width=True):
-                if feedback:
-                    with st.spinner("Re-drafting based on feedback..."):
-                        # Update state with feedback
-                        app.update_state(config, {"feedback": feedback})
-                        
-                        # Resume execution
-                        app.invoke(None, config=config)
-                        
-                        # Increment generation count to force UI refresh
-                        st.session_state.gen_count += 1
-                        st.rerun()
-                else:
-                    st.warning("Please enter feedback to refine.")
-        
-        with col_btn2:
-            if task_type == ('email'):
-                if st.button("📤 Send Email", type="primary", use_container_width=True):
-                    with st.spinner("Sending..."):
-                        # Use the EDITED content from the UI widgets
-                        try:
-                            # Update state with attachment info for record keeping
-                            app.update_state(config, {"attachment_path": edited_content.get('attachment_path')})
-                            
-                            attachments_list = []
-                            if edited_content.get('attachment_path') and os.path.exists(edited_content.get('attachment_path')):
-                                attachments_list.append(edited_content.get('attachment_path'))
-
-                            result = send_email.invoke({
-                                "recipient": edited_content['recipient'],
-                                "subject": edited_content['subject'],
-                                "body": edited_content['body'],
-                                "attachments": attachments_list
-                            })
-                            st.success(f"✅ {result}")
-                            # Optionally notify graph to end
-                            app.update_state(config, {"feedback": "send"})
-                            app.invoke(None, config=config)
-                        except Exception as e:
-                            st.error(f"❌ Failed: {e}")
-            else:
-                if st.button("✅ Approve", type="primary", use_container_width=True):
-                    # For non-email, just marking done
+    # ---------------- ACTIONS TAB ----------------
+    with tabs[2]:
+        if task_type == "email":
+            if st.button("📤 Send Email", type="primary", use_container_width=True):
+                with st.spinner("Sending email..."):
+                    send_email.invoke({
+                        "recipient": edited["recipient"],
+                        "subject": edited["subject"],
+                        "body": edited["body"],
+                        "attachments": []
+                    })
                     app.update_state(config, {"feedback": "send"})
                     app.invoke(None, config=config)
-                    st.success("Draft approved and saved!")
+                    st.success("Email sent successfully ✅")
+        else:
+            if st.button("✅ Approve & Finish", type="primary", use_container_width=True):
+                app.update_state(config, {"feedback": "send"})
+                app.invoke(None, config=config)
+                st.success("Draft approved 🎉")
