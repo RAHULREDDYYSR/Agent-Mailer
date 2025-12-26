@@ -99,6 +99,15 @@ uv run streamlit run streamlit_app3.py
 streamlit run streamlit_app3.py
 ```
 
+### Running the Backend API
+The project includes a robust FastAPI backend.
+
+```bash
+uv run uvicorn backend.main:app --reload
+```
+
+- **API Docs**: Visit `http://127.0.0.1:8000/docs` for the interactive Swagger UI.
+
 ### Workflow
 1.  **Input**: Paste the Job Description in the sidebar.
 2.  **Select**: Choose your output type (Email, LinkedIn, Cover Letter).
@@ -114,6 +123,13 @@ streamlit run streamlit_app3.py
 Agent-Mailer/
 ├── app.py                      # Legacy Streamlit app (entry point variant)
 ├── main.py                     # Optional launcher / quick tests
+├── backend/                    # FastAPI Backend
+│   ├── main.py                 # App entry point
+│   ├── core/                   # Config, Database, Security
+│   ├── models/                 # DB Models
+│   ├── routers/                # API Endpoints
+│   ├── schemas/                # Pydantic Schemas
+│   └── utils/                  # Backend Utilities
 ├── streamlit_app.py            # Streamlit app variant
 ├── streamlit_app1.py           # Alternate streamlit examples
 ├── streamlit_app2.py
@@ -140,7 +156,6 @@ Agent-Mailer/
     └── <session-id>/user_context.txt
 ```
 
-## ⚠️ Notes & Known Issues
 
 ## ⚠️ Notes & Known Issues
 
