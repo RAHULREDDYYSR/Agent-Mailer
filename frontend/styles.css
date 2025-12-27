@@ -1,0 +1,340 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   AGENT MAILER - PREMIUM DESIGN SYSTEM
+   Inspired by: Linear, Notion, Vercel
+   Compatible with Light & Dark modes via CSS custom properties
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   FONTS
+   ───────────────────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CSS CUSTOM PROPERTIES (Work with both Light & Dark modes)
+   ───────────────────────────────────────────────────────────────────────────── */
+:root {
+    /* Brand Colors */
+    --brand-primary: #6366f1;
+    --brand-primary-light: #818cf8;
+    --brand-primary-dark: #4f46e5;
+
+    /* Semantic Colors */
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --info: #3b82f6;
+
+    /* Spacing */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+
+    /* Border Radius */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-full: 9999px;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+    /* Transitions */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   GLOBAL RESETS & BASE
+   ───────────────────────────────────────────────────────────────────────────── */
+html,
+body,
+[class*="css"] {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* Hide Streamlit branding (but keep header for navigation) */
+#MainMenu,
+footer {
+    visibility: hidden !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TYPOGRAPHY
+   ───────────────────────────────────────────────────────────────────────────── */
+h1 {
+    font-weight: 700 !important;
+    font-size: 2.25rem !important;
+    letter-spacing: -0.025em !important;
+    line-height: 1.2 !important;
+}
+
+h2 {
+    font-weight: 600 !important;
+    font-size: 1.5rem !important;
+    letter-spacing: -0.02em !important;
+}
+
+h3 {
+    font-weight: 600 !important;
+    font-size: 1.25rem !important;
+}
+
+p,
+span,
+label {
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SIDEBAR
+   ───────────────────────────────────────────────────────────────────────────── */
+section[data-testid="stSidebar"] {
+    border-right: 1px solid rgba(128, 128, 128, 0.15);
+}
+
+section[data-testid="stSidebar"] .stMarkdown h1 {
+    font-size: 1.25rem !important;
+    margin-bottom: var(--space-lg);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CARDS (Use with st.container or st.markdown divs)
+   Theme-aware: uses transparent overlays that work in both light & dark
+   ───────────────────────────────────────────────────────────────────────────── */
+.premium-card {
+    background: rgba(128, 128, 128, 0.08);
+    border: 1px solid rgba(128, 128, 128, 0.15);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-md);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-base);
+}
+
+.premium-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--brand-primary);
+    background: rgba(99, 102, 241, 0.08);
+}
+
+.premium-card h3 {
+    margin: 0 0 var(--space-sm) 0 !important;
+    font-size: 1.1rem !important;
+}
+
+.premium-card p {
+    margin: 0;
+    opacity: 0.7;
+    font-size: 0.9rem;
+}
+
+/* Stat Card Variant */
+.stat-card {
+    text-align: center;
+    padding: var(--space-xl);
+}
+
+.stat-card .stat-value {
+    font-size: 3rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-light));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1;
+    margin-bottom: var(--space-sm);
+}
+
+.stat-card .stat-label {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.6;
+    font-weight: 500;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   BUTTONS
+   ───────────────────────────────────────────────────────────────────────────── */
+.stButton>button {
+    border-radius: var(--radius-md) !important;
+    font-weight: 600 !important;
+    padding: 0.625rem 1.25rem !important;
+    font-size: 0.95rem !important;
+    transition: all var(--transition-fast) !important;
+    border: none !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+.stButton>button[data-baseweb="button"][kind="primary"],
+.stButton>button[type="primary"] {
+    background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-dark)) !important;
+    color: white !important;
+}
+
+.stButton>button:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+.stButton>button:active {
+    transform: translateY(0) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   FORM INPUTS
+   ───────────────────────────────────────────────────────────────────────────── */
+.stTextInput>div>div>input,
+.stTextArea>div>div>textarea,
+.stSelectbox>div>div,
+.stMultiSelect>div>div {
+    border-radius: var(--radius-md) !important;
+    border: 1.5px solid rgba(128, 128, 128, 0.25) !important;
+    transition: all var(--transition-fast) !important;
+}
+
+.stTextInput>div>div>input:focus,
+.stTextArea>div>div>textarea:focus {
+    border-color: var(--brand-primary) !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TABS
+   ───────────────────────────────────────────────────────────────────────────── */
+.stTabs [data-baseweb="tab-list"] {
+    gap: var(--space-xs);
+    background: transparent;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+    padding-bottom: 0;
+}
+
+.stTabs [data-baseweb="tab"] {
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    padding: var(--space-sm) var(--space-md);
+    font-weight: 500;
+    border: none;
+    background: transparent;
+    transition: all var(--transition-fast);
+}
+
+.stTabs [aria-selected="true"] {
+    background: transparent !important;
+    font-weight: 600;
+    color: var(--brand-primary) !important;
+    border-bottom: 2px solid var(--brand-primary);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   EXPANDERS
+   ───────────────────────────────────────────────────────────────────────────── */
+[data-testid="stExpander"] {
+    border: 1px solid rgba(128, 128, 128, 0.15) !important;
+    border-radius: var(--radius-md) !important;
+    overflow: hidden;
+    background: rgba(128, 128, 128, 0.05);
+}
+
+.streamlit-expanderHeader {
+    font-weight: 600 !important;
+    padding: var(--space-md) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ALERTS / NOTIFICATIONS
+   ───────────────────────────────────────────────────────────────────────────── */
+[data-testid="stAlert"] {
+    border-radius: var(--radius-md) !important;
+    border-left-width: 4px !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   FILE UPLOADER
+   ───────────────────────────────────────────────────────────────────────────── */
+[data-testid="stFileUploader"] {
+    border: 2px dashed rgba(128, 128, 128, 0.25);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    transition: all var(--transition-fast);
+}
+
+[data-testid="stFileUploader"]:hover {
+    border-color: var(--brand-primary);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DATAFRAME
+   ───────────────────────────────────────────────────────────────────────────── */
+[data-testid="stDataFrame"] {
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid rgba(128, 128, 128, 0.15);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PROGRESS BAR
+   ───────────────────────────────────────────────────────────────────────────── */
+.stProgress>div>div {
+    background: linear-gradient(90deg, var(--brand-primary), var(--brand-primary-light)) !important;
+    border-radius: var(--radius-full);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   METRICS
+   ───────────────────────────────────────────────────────────────────────────── */
+[data-testid="stMetricValue"] {
+    font-size: 2rem !important;
+    font-weight: 700 !important;
+    color: var(--brand-primary) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SCROLLBAR (Subtle, theme-aware)
+   ───────────────────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(128, 128, 128, 0.3);
+    border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(128, 128, 128, 0.5);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   UTILITY CLASSES
+   ───────────────────────────────────────────────────────────────────────────── */
+.text-muted {
+    opacity: 0.6;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.mb-lg {
+    margin-bottom: var(--space-lg);
+}
+
+.gradient-text {
+    background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-light));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
