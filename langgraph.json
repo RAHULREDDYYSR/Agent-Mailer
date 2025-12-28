@@ -3,7 +3,8 @@
         "."
     ],
     "graphs": {
-        "draft_mail": "graph.graph:app"
+        "generate": "graph.graph:generate_graph",
+        "draft": "graph.graph:draft_graph"
     },
     "env": ".env"
 }

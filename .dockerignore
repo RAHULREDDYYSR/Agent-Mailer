@@ -1,0 +1,41 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+
+# Local configuration (mounted at runtime)
+.env
+
+# Demo and docs
+demo/
+*.md
+!README.md
+
+# LangGraph local cache
+.langgraph_api/
+
+# Streamlit cache
+.streamlit/secrets.toml
