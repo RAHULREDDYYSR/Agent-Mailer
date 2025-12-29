@@ -84,7 +84,8 @@ async def draft_context(
     jd_id: uuid.UUID,
     type: str,
     user: user_dependency,
-    db: db_dependency
+    db: db_dependency,
+    feedback: str | None = Form(None, description="Feedback for the generated content"),
 ):
     if type not in ["email", "linkedin_message", "cover_letter"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid content type")
@@ -105,17 +106,25 @@ async def draft_context(
     if not job_description.generated_context:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No generated context found for this job description. Please generate context first.")
     
+    user = await db.execute(select(User).where(User.id == user.get("id")))
+    user = user.scalars().first()
+    user_details = {
+        "name": f"{user.first_name} {user.last_name}",
+        "email": user.email,
+        "phone": user.phone,
+        "linkedin_url": user.linkedin,
+        "github_url": user.github,
+      
+    }
+    
     # Prepare state with existing context and explicit start point
     state = {
         "context": job_description.generated_context, # Reuse stored context
         "type": type,
+        "user_details": user_details,
+        "feedback": feedback
     }
-    # check if there is any generated content for this job description
-    result = await db.execute(select(GeneratedContents).where(GeneratedContents.jd_id == jd_id, GeneratedContents.user_id == user.get("id"), GeneratedContents.content_type == type_mapping[type]))
-    generated_content = result.scalars().first()
-    if generated_content:
-        return generated_content
-    
+
     thread_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}
     
@@ -147,6 +156,7 @@ async def draft_context(
             model_used=result_state.get('model_used'),
             prompt_version=result_state.get('prompt_version')
         )
+            
         db.add(generated_content)
         await db.commit()
     except Exception as e:

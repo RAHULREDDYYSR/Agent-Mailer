@@ -59,21 +59,42 @@ else:
     with tab2:
         st.markdown('<div class="premium-card">', unsafe_allow_html=True)
         
-        reg_username = st.text_input("Username", key="reg_user", placeholder="Choose a username")
-        reg_email = st.text_input("Email", key="reg_email", placeholder="your@email.com")
-        reg_password = st.text_input("Password", type="password", key="reg_pass", placeholder="Create a secure password")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        if st.button("Create Account →", use_container_width=True):
-            if reg_username and reg_email and reg_password:
-                with st.spinner("Creating your account..."):
-                    response = api.register(reg_username, reg_email, reg_password)
-                    if response is True:
-                        st.success("🎉 Account created! Please sign in.")
-                    else:
-                        st.error(response.get("error", "Registration failed."))
-            else:
-                st.warning("All fields are required.")
+        with st.form("register_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                first_name = st.text_input("First Name", key="reg_fname", placeholder="John")
+            with col2:
+                last_name = st.text_input("Last Name", key="reg_lname", placeholder="Doe")
+                
+            reg_username = st.text_input("Username", key="reg_user", placeholder="Choose a username")
+            reg_email = st.text_input("Email", key="reg_email", placeholder="your@email.com")
+            reg_password = st.text_input("Password", type="password", key="reg_pass", placeholder="Create a secure password")
+            
+            col3, col4 = st.columns(2)
+            with col3:
+                phone = st.text_input("Phone Number", key="reg_phone", placeholder="+1234567890")
+            with col4:
+                linkedin = st.text_input("LinkedIn URL", key="reg_linkedin", placeholder="https://linkedin.com/in/...")
+                
+            col5, col6 = st.columns(2)
+            with col5:
+                github = st.text_input("GitHub URL", key="reg_github", placeholder="https://github.com/...")
+            with col6:
+                portfolio = st.text_input("Portfolio URL", key="reg_portfolio", placeholder="https://myportfolio.com")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            submitted = st.form_submit_button("Create Account →", use_container_width=True)
+            
+            if submitted:
+                if reg_username and reg_email and reg_password:
+                    with st.spinner("Creating your account..."):
+                        response = api.register(reg_username, reg_email, reg_password, first_name, last_name, phone, linkedin, github, portfolio)
+                        if response is True:
+                            st.success("🎉 Account created! Please sign in.")
+                        else:
+                            st.error(response.get("error", "Registration failed."))
+                else:
+                    st.warning("Username, Email, and Password are required.")
         
         st.markdown('</div>', unsafe_allow_html=True)

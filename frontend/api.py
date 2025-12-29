@@ -21,9 +21,20 @@ class APIClient:
         except requests.exceptions.RequestException as e:
             return {"error": str(e), "details": response.text if 'response' in locals() else ""}
 
-    def register(self, username, email, password, role="user"):
+    def register(self, username, email, password, first_name=None, last_name=None, phone=None, linkedin=None, github=None, portfolio=None, role="user"):
         url = f"{self.base_url}/users/"
-        payload = {"username": username, "email": email, "password": password, "role": role}
+        payload = {
+            "username": username,
+            "email": email,
+            "password": password,
+            "role": role,
+            "first_name": first_name,
+            "last_name": last_name,
+            "phone": phone,
+            "linkedin": linkedin,
+            "github": github,
+            "portfolio": portfolio
+        }
         try:
             response = requests.post(url, json=payload)
             response.raise_for_status()
@@ -81,11 +92,15 @@ class APIClient:
         except requests.exceptions.RequestException as e:
              return {"error": str(e), "details": response.text if 'response' in locals() else ""}
 
-    def draft_context(self, jd_id, type_):
+    def draft_context(self, jd_id, type_, feedback=None):
         url = f"{self.base_url}/generation/draft_context"
         params = {"jd_id": jd_id, "type": type_}
+        data = {}
+        if feedback:
+            data["feedback"] = feedback
+            
         try:
-            response = requests.post(url, headers=self._get_headers(), params=params)
+            response = requests.post(url, headers=self._get_headers(), params=params, data=data)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:

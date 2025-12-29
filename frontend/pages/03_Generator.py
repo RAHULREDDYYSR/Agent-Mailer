@@ -22,21 +22,10 @@ if not st.session_state.get("access_token"):
 
 # Handle Dashboard redirect
 if "dashboard_draft_type" in st.session_state and st.session_state.dashboard_draft_type:
-    draft_type = st.session_state.dashboard_draft_type
-    jd_id = st.session_state.current_jd_id
-    
-    if jd_id:
-        with st.spinner(f"Generating {draft_type}..."):
-            response = api.draft_context(jd_id, draft_type)
-            if "body" in response:
-                st.session_state.generated_draft = response
-                st.session_state.generated_draft['type'] = draft_type
-                st.session_state.gen_step = 3
-                st.session_state.dashboard_draft_type = None
-                st.rerun()
-            else:
-                st.error(f"Error: {response}")
-                st.session_state.dashboard_draft_type = None
+    st.session_state.selected_type = st.session_state.dashboard_draft_type
+    st.session_state.gen_step = 2
+    st.session_state.dashboard_draft_type = None
+    st.rerun()
 
 # Initialize session state
 if "gen_step" not in st.session_state:
@@ -134,6 +123,10 @@ if st.session_state.gen_step == 2:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
+    feedback = st.text_area("Additional Instructions (Optional)", placeholder="E.g. Focus on my Python skills, keep it casual, etc.", help="Add specific instructions for the AI to follow when generating the draft.")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     col_back, col_next = st.columns([1, 3])
     with col_back:
         if st.button("← Back"):
@@ -143,7 +136,7 @@ if st.session_state.gen_step == 2:
         if st.button("Generate Draft →", type="primary", use_container_width=True):
             if st.session_state.current_jd_id:
                 with st.spinner(f"Generating {draft_type}..."):
-                    response = api.draft_context(st.session_state.current_jd_id, draft_type)
+                    response = api.draft_context(st.session_state.current_jd_id, draft_type, feedback)
                     if "body" in response:
                         st.session_state.generated_draft = response
                         st.session_state.generated_draft['type'] = draft_type

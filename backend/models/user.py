@@ -13,6 +13,12 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     user_context: Mapped[str] = mapped_column(Text, nullable=True)
     role: Mapped[str] = mapped_column(String(50), default="user", nullable=False)
+    first_name: Mapped[str] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[str] = mapped_column(String(100), nullable=True)
+    phone: Mapped[str] = mapped_column(String(50), nullable=True)
+    linkedin: Mapped[str] = mapped_column(String(255), nullable=True)
+    github: Mapped[str] = mapped_column(String(255), nullable=True)
+    portfolio: Mapped[str] = mapped_column(String(255), nullable=True)
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

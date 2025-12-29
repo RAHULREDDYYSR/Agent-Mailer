@@ -1,6 +1,6 @@
 from .state import GenerateState, DraftState
 from .chains import email_llm, linkedin_message_llm, cover_letter_llm, agent, llm
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langsmith import Client
 
 from dotenv import load_dotenv
@@ -30,9 +30,11 @@ def content_generator(state: GenerateState) -> GenerateState:
 
 def email_drafter_agent(state: DraftState) -> DraftState:
     """Drafts an email to the HR/Recruiter based on the generated context."""
-    prompt_name = "email_drafter_prompt"
+    prompt_name = "email_draft_prompt"
     prompt = client.pull_prompt(prompt_name)
-    messages = prompt.invoke({'context': state['context']}).to_messages()
+    messages = prompt.invoke({'context': state['context'], 'user_details': state['user_details']}).to_messages()
+    if state.get('feedback'):
+        messages.append(HumanMessage(content=state['feedback']))
     
     response = email_llm.invoke(messages)
     state['email'] = response.model_dump()
@@ -51,6 +53,9 @@ def linkedin_message_agent(state: DraftState) -> DraftState:
     prompt_name = "linkedin_message_prompt"
     prompt = client.pull_prompt(prompt_name)
     messages = prompt.invoke({'context': state['context']}).to_messages()
+    if state.get('feedback'):
+        messages.append(HumanMessage(content=state['feedback']))
+    
       
     response = linkedin_message_llm.invoke(messages)
     state['linkedin_message'] = response.model_dump()
@@ -66,6 +71,11 @@ def cover_letter_agent(state: DraftState) -> DraftState:
     prompt_name = "cover_letter_prompt"
     prompt = client.pull_prompt(prompt_name)
     messages = prompt.invoke({'context': state['context']}).to_messages()
+    if state.get('feedback'):
+        messages.append(HumanMessage(content=state['feedback']))
     response = cover_letter_llm.invoke(messages)
     state['cover_letter'] = response.model_dump()
+    # Capture metadata
+    state['model_used'] = llm.model_name
+    state['prompt_version'] = prompt_name
     return state

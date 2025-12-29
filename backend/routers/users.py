@@ -35,7 +35,13 @@ async def create_user(
         username=payload.username,
         email=payload.email,
         role=payload.role,
-        password_hash=hashed_password(payload.password)
+        password_hash=hashed_password(payload.password),
+        first_name=payload.first_name,
+        last_name=payload.last_name,
+        phone=payload.phone,
+        linkedin=payload.linkedin,
+        github=payload.github,
+        portfolio=payload.portfolio
     )
     db.add(new_user)
     await db.commit()
@@ -43,7 +49,7 @@ async def create_user(
 
 
 
-@router.get('/me', status_code=status.HTTP_200_OK)
+@router.get('/me', status_code=status.HTTP_200_OK, response_model=UserRead)
 async def get_user(user:user_dependency, db:db_dependency):
     result = await db.execute(select(User).where(User.id == user.get("id")))
     return result.scalars().first()

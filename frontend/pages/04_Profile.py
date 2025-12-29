@@ -20,47 +20,87 @@ if not st.session_state.get("access_token"):
     st.stop()
 
 # Get user data
-user = st.session_state.user
-
-if not user and st.session_state.access_token:
+if st.session_state.get("access_token"):
     user = api.get_user_me()
     if user:
         st.session_state.user = user
+    else:
+        user = st.session_state.get("user")
+else:
+    user = None
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PROFILE SECTION
 # ──────────────────────────────────────────────────────────────────────────────
 if user:
+    # Main Profile Card
     st.markdown(f"""
     <div class="premium-card">
-        <div style="display: flex; align-items: center; gap: 16px;">
-            <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #6366f1, #818cf8); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white;">
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #6366f1, #818cf8); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: white; box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);">
                 {user.get('username', 'U')[0].upper()}
             </div>
             <div>
-                <h3 style="margin: 0;">{user.get('username', 'Unknown')}</h3>
-                <p style="margin: 0; opacity: 0.6;">{user.get('email', '')}</p>
+                <h3 style="margin: 0; font-size: 1.5rem;">{user.get('first_name') or ''} {user.get('last_name') or user.get('username')}</h3>
+                <p style="margin: 4px 0 0 0; opacity: 0.8;">{user.get('email', '')}</p>
+                <span style="display: inline-block; background: rgba(99, 102, 241, 0.1); color: #818cf8; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; margin-top: 8px;">
+                    {user.get('role', 'User').title()}
+                </span>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
-    with col1:
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Details Grid
+    st.markdown("### Personal Details")
+    
+    c1, c2 = st.columns(2)
+    
+    with c1:
+        phone = user.get('phone') or 'Not provided'
+        linkedin = user.get('linkedin') or 'Not provided'
+        
         st.markdown(f"""
-        <div class="premium-card">
-            <p style="opacity: 0.6; font-size: 0.85rem; margin: 0;">Role</p>
-            <p style="font-weight: 600; margin: 4px 0 0 0;">{user.get('role', 'User').title()}</p>
+        <div class="premium-card" style="height: 100%;">
+            <div style="margin-bottom: 16px;">
+                <p style="opacity: 0.6; font-size: 0.85rem; margin: 0;">📱 Phone</p>
+                <p style="font-weight: 500; margin: 4px 0 0 0;">{phone}</p>
+            </div>
+            <div>
+                <p style="opacity: 0.6; font-size: 0.85rem; margin: 0;">💼 LinkedIn</p>
+                <p style="font-weight: 500; margin: 4px 0 0 0;">
+                    {'<a href="' + linkedin + '" target="_blank" style="text-decoration:none;">View Profile ↗</a>' if linkedin.startswith('http') else linkedin}
+                </p>
+            </div>
         </div>
         """, unsafe_allow_html=True)
-    with col2:
-        created = user.get('created_at', '')
+        
+    with c2:
+        github = user.get('github') or 'Not provided'
+        portfolio = user.get('portfolio') or 'Not provided'
+        
         st.markdown(f"""
-        <div class="premium-card">
-            <p style="opacity: 0.6; font-size: 0.85rem; margin: 0;">Member Since</p>
-            <p style="font-weight: 600; margin: 4px 0 0 0;">{created[:10] if created else 'N/A'}</p>
+        <div class="premium-card" style="height: 100%;">
+            <div style="margin-bottom: 16px;">
+                <p style="opacity: 0.6; font-size: 0.85rem; margin: 0;">💻 GitHub</p>
+                <p style="font-weight: 500; margin: 4px 0 0 0;">
+                    {'<a href="' + github + '" target="_blank" style="text-decoration:none;">View Profile ↗</a>' if github.startswith('http') else github}
+                </p>
+            </div>
+            <div>
+                <p style="opacity: 0.6; font-size: 0.85rem; margin: 0;">🌐 Portfolio</p>
+                <p style="font-weight: 500; margin: 4px 0 0 0;">
+                    {'<a href="' + portfolio + '" target="_blank" style="text-decoration:none;">Visit Site ↗</a>' if portfolio.startswith('http') else portfolio}
+                </p>
+            </div>
         </div>
         """, unsafe_allow_html=True)
+        
+    # Meta Info
+    created = user.get('created_at', '')
+    st.caption(f"Member since: {created[:10] if created else 'Unknown'}")
 else:
     st.error("Unable to load profile data.")
     st.stop()

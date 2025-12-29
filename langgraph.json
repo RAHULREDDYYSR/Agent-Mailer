@@ -3,8 +3,8 @@
         "."
     ],
     "graphs": {
-        "generate": "graph.graph:generate_graph",
-        "draft": "graph.graph:draft_graph"
+        "generate": "backend.graph.main:generate_graph",
+        "draft": "backend.graph.main:draft_graph"
     },
     "env": ".env"
 }
