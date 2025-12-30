@@ -3,8 +3,11 @@ import streamlit as st
 import os
 
 class APIClient:
-    def __init__(self, base_url="http://localhost:8000"):
-        self.base_url = base_url
+    def __init__(self, base_url=None):
+        if base_url:
+            self.base_url = base_url
+        else:
+            self.base_url = os.getenv("BACKEND_URL", "http://localhost:8000")
 
     def _get_headers(self):
         token = st.session_state.get("access_token")
