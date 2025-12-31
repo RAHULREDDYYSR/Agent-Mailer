@@ -13,7 +13,7 @@
 
 ## 📖 About
 
-**Agent Mailer** is a sophisticated **Human-in-the-Loop (HITL)** AI application designed to automate professional outreach. Built on the **Deep Agent** architecture, it leverages **LangChain**, **LangGraph**, and **LangSmith** to generate, refine, and dispatch hyper-personalized Emails, LinkedIn Messages, and Cover Letters.
+**Agent Mailer** is a sophisticated **Human-in-the-Loop (HITL)** AI application designed to automate professional outreach. Built on the **Deep Agent** architecture, it leverages **LangChain**, **LangGraph**, and **LangSmith** to generate, refined, and dispatch hyper-personalized Emails, LinkedIn Messages, and Cover Letters.
 
 Unlike simple LLM wrappers, this system acts as a **Multi-Agent System** where specialized agents work together to analyze job descriptions, generate content, and refine drafts based on your feedback.
 
