@@ -21,6 +21,8 @@ Unlike simple LLM wrappers, this system acts as a **Multi-Agent System** where s
 
 - **🤖 Autonomous Agents**: Specialized agents for content generation (Email, LinkedIn, Cover Letter).
 - **🧠 Context Awareness**: Analyzes Job Descriptions (JD) deeply to create a reusable context layer.
+- **🔐 Secure & Personalized**: Full Authentication and Authorization support allows for deeply personalized responses and data validation.
+- **⚡ Asyncio Powered**: Built with full `asyncio` support for high-performance, concurrent operations.
 - **📂 User Context Support**: Upload your own files (PDF, TXT, MD) to personalize drafts with your resume or notes.
 - **🔄 Human-in-the-Loop**: Review, refine, and edit drafts before they are finalized.
 - **📧 Built-in Sending**: Send emails directly via SMTP with attachment support.
@@ -157,7 +159,7 @@ Agent-Mailer/
 -   **Language**: Python 3.13
 -   **Orchestration**: LangGraph
 -   **Frameworks**: FastAPI, Streamlit
--   **Database**: PostgreSQL / SQLite (via SQLAlchemy)
+-   **Database**: PostgreSQL (Supabase)
 -   **Package Manager**: uv
 -   **Containerization**: Docker
 
