@@ -106,14 +106,14 @@ async def draft_context(
     if not job_description.generated_context:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No generated context found for this job description. Please generate context first.")
     
-    user = await db.execute(select(User).where(User.id == user.get("id")))
-    user = user.scalars().first()
+    user_result = await db.execute(select(User).where(User.id == user.get("id")))
+    db_user = user_result.scalars().first()
     user_details = {
-        "name": f"{user.first_name} {user.last_name}",
-        "email": user.email,
-        "phone": user.phone,
-        "linkedin_url": user.linkedin,
-        "github_url": user.github,
+        "name": f"{db_user.first_name} {db_user.last_name}",
+        "email": db_user.email,
+        "phone": db_user.phone,
+        "linkedin_url": db_user.linkedin,
+        "github_url": db_user.github,
       
     }
     
