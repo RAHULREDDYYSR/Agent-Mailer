@@ -159,7 +159,7 @@ if st.session_state.gen_step == 3:
     draft = st.session_state.generated_draft
     draft_type = draft.get('type', 'email')
     
-    with st.form("edit_form"):
+    with st.container():
         col1, col2 = st.columns(2)
         with col1:
             recipient = st.text_input("📬 Recipient", value=draft.get('recipient', ''), placeholder="recipient@company.com")
@@ -167,19 +167,42 @@ if st.session_state.gen_step == 3:
             subject = st.text_input("📋 Subject", value=draft.get('subject', ''))
         
         body = st.text_area("✏️ Content", value=draft.get('body', ''), height=350)
+
+        # --- PDF Download (Cover Letter Only) ---
+        if draft_type == "cover_letter":
+            # Generate PDF on the fly based on current body content
+            # We use a unique key based on content hash or length to allow re-generation if text changes
+            # Actually st.download_button is simpler: it will use the current 'body' when clicked if we generate the data
+            
+            with st.spinner("Generating PDF..."):
+                # Note: generating on every rerun might be expensive. 
+                # Ideally we generate only when needed, but download_button needs 'data' upfront.
+                # Optimization: Cache the PDF if body hasn't changed.
+                
+                pdf_bytes = api.generate_pdf(body)
+                if pdf_bytes:
+                    st.download_button(
+                        label="📄 Download as PDF",
+                        data=pdf_bytes,
+                        file_name="cover_letter.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                else:
+                    st.error("Failed to generate PDF")
         
         files = None
         if draft_type == 'email':
             st.markdown("**📎 Attachments**")
-            files = st.file_uploader("Upload files", accept_multiple_files=True, label_visibility="collapsed")
+            files = st.file_uploader("Upload files", accept_multiple_files=True, label_visibility="collapsed", key="email_attachments")
         
         st.markdown("<br>", unsafe_allow_html=True)
         
         col_back, col_send = st.columns([1, 3])
         with col_back:
-            back_btn = st.form_submit_button("← Back")
+            back_btn = st.button("← Back")
         with col_send:
-            send_btn = st.form_submit_button("Send Email 📨", type="primary", use_container_width=True)
+            send_btn = st.button("Send Email 📨", type="primary", use_container_width=True)
         
         if back_btn:
             st.session_state.gen_step = 2

@@ -154,4 +154,15 @@ class APIClient:
         except requests.exceptions.RequestException:
             return []
 
+    def generate_pdf(self, body):
+        url = f"{self.base_url}/generation/pdf"
+        data = {"body": body}
+        try:
+            response = requests.post(url, headers=self._get_headers(), data=data)
+            response.raise_for_status()
+            return response.content
+        except requests.exceptions.RequestException as e:
+            st.error(f"Error generating PDF: {e}")
+            return None
+
 api = APIClient()

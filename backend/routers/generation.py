@@ -13,6 +13,8 @@ from backend.core.security import get_current_user
 from backend.graph.main import draft_graph, generate_graph
 from backend.utils.email_sender import send_email
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import Response
+from backend.utils.pdf_generator import create_pdf
 
 router = APIRouter(prefix="/generation", tags=["generation"])
 
@@ -275,3 +277,16 @@ async def get_generated_contents_by_job(user:user_dependency, db:db_dependency, 
         response.append(content_dict)
         
     return response
+
+
+@router.post('/pdf', status_code=status.HTTP_200_OK)
+async def generate_pdf_endpoint(
+    body: str = Form(..., description="Content to be converted to PDF")
+):
+    try:
+        # Run in threadpool since create_pdf might be CPU bound or blocking
+        pdf_bytes = await run_in_threadpool(create_pdf, body)
+        return Response(content=pdf_bytes, media_type="application/pdf")
+    except Exception as e:
+        print(f"Error generating PDF: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to generate PDF")

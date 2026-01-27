@@ -7,6 +7,7 @@ from graph.graph import app
 from utils.email_sender_tool import send_email
 from utils.file_parser import parse_file
 from utils.context_builder import build_user_context
+from utils.pdf_generator import create_pdf
 
 # --------------------------------------------------
 # ENV SETUP
@@ -220,6 +221,17 @@ else:
         else:
             data = values.get("cover_letter", {})
             body = st.text_area("Cover Letter", data.get("body", ""), height=520, key=f"cl_{k}")
+            
+            # --- PDF Download ---
+            pdf_bytes = create_pdf(body)
+            st.download_button(
+                label="📄 Download as PDF",
+                data=pdf_bytes,
+                file_name="cover_letter.pdf",
+                mime="application/pdf",
+                key=f"dl_{k}"
+            )
+            
             edited = {"body": body}
 
     # ---------------- REFINE TAB ----------------
