@@ -1,0 +1,21 @@
+# Frontend: Streamlit (Python 3.13 with uv)
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+WORKDIR /app
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project --no-dev
+
+COPY . .
+RUN uv sync --frozen --no-dev
+
+# Set the backend URL via env in Render after deployment
+# ENV BACKEND_URL=https://your-backend.onrender.com
+
+EXPOSE 8501
+CMD ["uv", "run", "streamlit", "run", "frontend/app.py", "--server.address", "0.0.0.0", "--server.port", "8501"]
