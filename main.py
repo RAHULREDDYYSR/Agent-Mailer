@@ -26,7 +26,7 @@ def main():
         # Start Frontend
         print("Launching Frontend...")
         frontend_process = subprocess.Popen(
-            ["uv", "run", "streamlit", "run", "frontend/app.py", "--server.port", "8501"],
+            ["uv", "run", "streamlit", "run", "frontend/app.py", "--server.port", "8501", "--server.headless", "true"],
             env=os.environ.copy()
         )
 

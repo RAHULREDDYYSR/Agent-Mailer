@@ -6,6 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Agent Mailer Backend", version="1.0.0")
 
+@app.get("/")
+async def root():
+    return {"message": "Agent Mailer API is running"}
+
 
 # Adjust allowed origins after you know your frontend URL
 app.add_middleware(

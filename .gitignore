@@ -12,5 +12,8 @@ agent-data
 .env
 .langgraph_api
 
+.devcontainer/
+Personal/
+
 
 RAHUL_Y_S_CV.pdf
