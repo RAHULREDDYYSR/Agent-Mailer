@@ -5,8 +5,17 @@ class GenerateState(TypedDict):
     user_context: str
     job_description: str
     context: str
+    # Optional: GitHub profile URL — if provided, README summaries are prepended to user_context
+    github_url: Optional[str]
     model_used: Optional[str]
     prompt_version: Optional[str]
+
+
+class GitHubScrapeState(TypedDict):
+    '''State for the standalone GitHub README scrape + summarise graph'''
+    github_url: str
+    # Resulting enriched context to be saved back to the user profile
+    github_context: str
 
 
 class DraftState(TypedDict):

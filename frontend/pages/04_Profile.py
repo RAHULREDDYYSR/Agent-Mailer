@@ -1,6 +1,7 @@
 import streamlit as st
 import sys
 import os
+import time
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from api import api
 from auth_utils import restore_session
@@ -50,18 +51,18 @@ if user:
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
+
     st.markdown("<br>", unsafe_allow_html=True)
-    
+
     # Details Grid
     st.markdown("### Personal Details")
-    
+
     c1, c2 = st.columns(2)
-    
+
     with c1:
         phone = user.get('phone') or 'Not provided'
         linkedin = user.get('linkedin') or 'Not provided'
-        
+
         st.markdown(f"""
         <div class="premium-card" style="height: 100%;">
             <div style="margin-bottom: 16px;">
@@ -76,11 +77,11 @@ if user:
             </div>
         </div>
         """, unsafe_allow_html=True)
-        
+
     with c2:
         github = user.get('github') or 'Not provided'
         portfolio = user.get('portfolio') or 'Not provided'
-        
+
         st.markdown(f"""
         <div class="premium-card" style="height: 100%;">
             <div style="margin-bottom: 16px;">
@@ -97,8 +98,7 @@ if user:
             </div>
         </div>
         """, unsafe_allow_html=True)
-        
-    # Meta Info
+
     created = user.get('created_at', '')
     st.caption(f"Member since: {created[:10] if created else 'Unknown'}")
 else:
@@ -108,12 +108,82 @@ else:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────────────────────────────────────
+# GITHUB CONTEXT STATUS PANEL
+# ──────────────────────────────────────────────────────────────────────────────
+st.markdown("### 🐙 GitHub Project Context")
+
+github_status = api.get_github_context_status()
+has_github = github_status.get("has_github", False)
+context_ready = github_status.get("context_ready", False)
+repos_count = github_status.get("repos_summarised", 0)
+github_url = github_status.get("github_url", "")
+
+if not has_github:
+    st.markdown("""
+    <div class="premium-card" style="border-left: 4px solid #f59e0b;">
+        <p style="margin: 0; opacity: 0.9;">⚠️ No GitHub URL found on your profile. Add one to enable automatic project context scraping.</p>
+    </div>
+    """, unsafe_allow_html=True)
+elif context_ready:
+    st.markdown(f"""
+    <div class="premium-card" style="border-left: 4px solid #10b981;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <p style="margin: 0; font-weight: 600; color: #10b981;">✅ GitHub context is ready</p>
+                <p style="margin: 4px 0 0 0; opacity: 0.7; font-size: 0.9rem;">
+                    {repos_count} project{'s' if repos_count != 1 else ''} summarised from
+                    <a href="{github_url}" target="_blank" style="color: #818cf8;">{github_url}</a>
+                </p>
+                <p style="margin: 4px 0 0 0; opacity: 0.6; font-size: 0.8rem;">
+                    This context is automatically used when generating outreach emails and messages.
+                </p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown(f"""
+    <div class="premium-card" style="border-left: 4px solid #6366f1;">
+        <p style="margin: 0; font-weight: 600; color: #818cf8;">⏳ GitHub scrape in progress...</p>
+        <p style="margin: 4px 0 0 0; opacity: 0.7; font-size: 0.9rem;">
+            Your repositories are being analysed in the background.
+            This page will update automatically.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    # Auto-refresh while pending
+    time.sleep(4)
+    st.rerun()
+
+# Re-scrape button (always visible if GitHub URL exists)
+if has_github:
+    st.markdown("<br>", unsafe_allow_html=True)
+    col_btn, col_info = st.columns([1, 2])
+    with col_btn:
+        if st.button("🔄 Re-scrape GitHub", use_container_width=True):
+            with st.spinner("Triggering GitHub scrape..."):
+                result = api.scrape_github()
+                if "error" in result:
+                    st.error(f"Error: {result['error']}")
+                else:
+                    st.success(f"✅ {result.get('message', 'Scrape complete!')}")
+                    time.sleep(1)
+                    st.rerun()
+    with col_info:
+        st.caption(
+            "Re-scraping fetches the latest READMEs from your GitHub profile, "
+            "replaces the old project summaries, and updates your context."
+        )
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# ──────────────────────────────────────────────────────────────────────────────
 # CONTEXT UPLOAD SECTION
 # ──────────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="premium-card">
-    <h3>📂 Personal Context</h3>
-    <p style="opacity: 0.6;">Upload your resume, portfolio, or bio to personalize AI-generated content.</p>
+    <h3>📂 Additional Context (Optional)</h3>
+    <p style="opacity: 0.6;">Upload your resume or bio to supplement the GitHub-sourced context. GitHub projects are auto-populated — you only need to upload extra files if needed.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -162,9 +232,9 @@ st.markdown(f"""
 if user and user.get('user_context'):
     with st.expander("📄 View Stored Context"):
         st.text(user.get('user_context', 'No context found.'))
-    
+
     st.markdown("<br>", unsafe_allow_html=True)
-    
+
     if st.button("🗑️ Clear All Context", type="secondary", use_container_width=True):
         with st.spinner("Deleting context..."):
             res = api.delete_context()
@@ -177,4 +247,4 @@ if user and user.get('user_context'):
                     st.session_state.user = updated_user
                     st.rerun()
 else:
-    st.info("No context uploaded yet. Upload your documents above to get started.")
+    st.info("No context yet. GitHub projects will appear here automatically after scraping completes.")

@@ -165,4 +165,29 @@ class APIClient:
             st.error(f"Error generating PDF: {e}")
             return None
 
+    def get_github_context_status(self):
+        """Poll whether the background GitHub scrape has completed."""
+        url = f"{self.base_url}/users/github_context_status"
+        try:
+            response = requests.get(url, headers=self._get_headers())
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException:
+            return {"has_github": False, "context_ready": False, "repos_summarised": 0}
+
+    def scrape_github(self, github_url: str | None = None):
+        """Manually trigger a GitHub README scrape (re-scrape or for a custom URL)."""
+        url = f"{self.base_url}/generation/scrape_github"
+        data = {}
+        if github_url:
+            data["github_url"] = github_url
+        try:
+            response = requests.post(url, headers=self._get_headers(), data=data)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            return {"error": str(e), "details": response.text if 'response' in locals() else ""}
+
+
 api = APIClient()
+

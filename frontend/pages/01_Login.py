@@ -92,6 +92,12 @@ else:
                         response = api.register(reg_username, reg_email, reg_password, first_name, last_name, phone, linkedin, github, portfolio)
                         if response is True:
                             st.success("🎉 Account created! Please sign in.")
+                            if github and github.strip():
+                                st.info(
+                                    "🐙 **GitHub context is being built in the background.** "
+                                    "Your project READMEs are being scraped and summarised automatically — "
+                                    "check the Profile page after logging in to see the status."
+                                )
                         else:
                             st.error(response.get("error", "Registration failed."))
                 else:

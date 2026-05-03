@@ -10,7 +10,7 @@ from backend.models.generated_contents import GeneratedContents
 from backend.models.generated_contents import ContentTypes
 from backend.schemas.user import Usercreate, UserRead
 from backend.core.security import get_current_user
-from backend.graph.main import draft_graph, generate_graph
+from backend.graph.main import draft_graph, generate_graph, github_scrape_graph
 from backend.utils.email_sender import send_email
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
@@ -79,6 +79,70 @@ async def generate_context(
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to save job description")
         
     return context_dict
+
+
+@router.post('/scrape_github', status_code=status.HTTP_200_OK)
+async def scrape_github_readmes(
+    user: user_dependency,
+    db: db_dependency,
+    github_url: str = Form(
+        None,
+        description=(
+            "GitHub profile URL to scrape (e.g. https://github.com/username). "
+            "Defaults to the URL saved in your user profile."
+        ),
+    ),
+):
+    """
+    Scrape all public README files from a GitHub profile, summarise each one
+    with the LLM (extracting only job-outreach-relevant signals), and persist
+    the result into the user's `user_context` field.
+
+    This eliminates the need to manually upload project files.
+    """
+    # Resolve which GitHub URL to scrape
+    result = await db.execute(select(User).where(User.id == user.get("id")))
+    db_user = result.scalars().first()
+
+    target_url = github_url or (db_user.github if db_user else None)
+    if not target_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No GitHub URL provided and none saved on your profile.",
+        )
+
+    thread_id = str(uuid.uuid4())
+    config = {"configurable": {"thread_id": thread_id}}
+
+    try:
+        result_state = await github_scrape_graph.ainvoke(
+            {"github_url": target_url}, config=config
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"GitHub scrape failed: {exc}",
+        )
+
+    github_context: str = result_state.get("github_context", "")
+    if not github_context:
+        return {"message": "No useful README content found on the GitHub profile.", "repos_summarised": 0}
+
+    # Merge into existing user_context (append the GitHub section)
+    existing = (db_user.user_context or "").strip()
+    # Remove any previously stored GitHub section to avoid duplication
+    if "## GitHub Projects (auto-summarised)" in existing:
+        existing = existing.split("## GitHub Projects (auto-summarised)")[0].strip()
+
+    db_user.user_context = (existing + "\n\n" + github_context).strip()
+    await db.commit()
+
+    repos_count = github_context.count("### Project:")
+    return {
+        "message": f"Successfully scraped and summarised {repos_count} GitHub project(s).",
+        "repos_summarised": repos_count,
+        "preview": github_context[:500] + ("..." if len(github_context) > 500 else ""),
+    }
 
 
 @router.post('/draft_context', status_code=status.HTTP_200_OK)
