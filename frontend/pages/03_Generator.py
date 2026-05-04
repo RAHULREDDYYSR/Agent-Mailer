@@ -56,29 +56,73 @@ if st.session_state.gen_step == 1:
     st.markdown("""
     <div class="premium-card">
         <h3>Step 1: Analyze Job Description</h3>
-        <p style="opacity: 0.6;">Paste the job posting below. Our AI will extract key requirements and match them to your profile.</p>
+        <p style="opacity: 0.6;">Paste the job posting below or provide a URL to the job listing. Our AI will extract key requirements and match them to your profile.</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    jd_text = st.text_area(
-        "Job Description",
-        height=250,
-        placeholder="Paste the full job description here...",
-        label_visibility="collapsed"
-    )
-    
+
+    # Initialize session state for extracted JD from URL
+    if "url_extracted_jd" not in st.session_state:
+        st.session_state.url_extracted_jd = ""
+
+    tab_paste, tab_url = st.tabs(["Paste Job Description", "Import from URL"])
+
+    with tab_paste:
+        jd_text = st.text_area(
+            "Job Description",
+            height=250,
+            placeholder="Paste the full job description here...",
+            label_visibility="collapsed",
+            key="jd_text_paste"
+        )
+
+    with tab_url:
+        jd_url = st.text_input(
+            "Job Posting URL",
+            placeholder="https://example.com/jobs/software-engineer",
+            help="Paste the URL of a job posting. We'll automatically extract the job description.",
+            key="jd_url_input"
+        )
+
+        if st.button("Extract JD from URL", type="secondary", use_container_width=True):
+            if jd_url:
+                with st.spinner("Scraping and extracting job description from URL..."):
+                    result = api.extract_jd_from_url(jd_url)
+                    if "extracted_jd" in result:
+                        st.session_state.url_extracted_jd = result["extracted_jd"]
+                        st.success("Job description extracted successfully! Review it below and click Analyze & Continue.")
+                    else:
+                        detail = result.get("detail", result.get("error", "Unknown error"))
+                        st.error(f"Failed to extract JD: {detail}")
+            else:
+                st.warning("Please enter a URL first.")
+
+        if st.session_state.url_extracted_jd:
+            st.markdown("**Extracted Job Description:**")
+            st.session_state.url_extracted_jd = st.text_area(
+                "Extracted JD",
+                value=st.session_state.url_extracted_jd,
+                height=250,
+                label_visibility="collapsed",
+                key="jd_text_url_extracted",
+                help="You can edit the extracted text before proceeding."
+            )
+
     st.markdown("<br>", unsafe_allow_html=True)
-    
+
+    # Determine which JD text to use: prefer the paste tab, fall back to URL-extracted
+    final_jd = jd_text.strip() if jd_text and jd_text.strip() else st.session_state.url_extracted_jd.strip()
+
     if st.button("Analyze & Continue →", type="primary", use_container_width=True):
-        if jd_text:
+        if final_jd:
             with st.spinner("Analyzing job description..."):
-                response = api.generate_context(jd_text)
+                response = api.generate_context(final_jd)
                 if "job_title" in response or "raw_content" in response:
                     jobs = api.get_jobs()
                     if jobs:
                         latest_job = jobs[-1] 
                         st.session_state.current_jd_id = latest_job['id']
-                        st.success("✅ Analysis complete!")
+                        st.session_state.url_extracted_jd = ""
+                        st.success("Analysis complete!")
                         st.session_state.gen_step = 2
                         st.rerun()
                     else:
@@ -86,7 +130,7 @@ if st.session_state.gen_step == 1:
                 else:
                     st.error(f"Error: {response}")
         else:
-            st.warning("Please paste a job description first.")
+            st.warning("Please paste a job description or extract one from a URL first.")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # STEP 2: Choose Output Type
@@ -170,26 +214,24 @@ if st.session_state.gen_step == 3:
 
         # --- PDF Download (Cover Letter Only) ---
         if draft_type == "cover_letter":
-            # Generate PDF on the fly based on current body content
-            # We use a unique key based on content hash or length to allow re-generation if text changes
-            # Actually st.download_button is simpler: it will use the current 'body' when clicked if we generate the data
+            if st.button("📄 Prepare PDF for Download", use_container_width=True):
+                with st.spinner("Generating PDF..."):
+                    pdf_bytes = api.generate_pdf(body)
+                    if pdf_bytes:
+                        st.session_state['pdf_ready'] = True
+                        st.session_state['pdf_bytes'] = pdf_bytes
+                        st.rerun()
+                    else:
+                        st.error("Failed to generate PDF")
             
-            with st.spinner("Generating PDF..."):
-                # Note: generating on every rerun might be expensive. 
-                # Ideally we generate only when needed, but download_button needs 'data' upfront.
-                # Optimization: Cache the PDF if body hasn't changed.
-                
-                pdf_bytes = api.generate_pdf(body)
-                if pdf_bytes:
-                    st.download_button(
-                        label="📄 Download as PDF",
-                        data=pdf_bytes,
-                        file_name="cover_letter.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
-                else:
-                    st.error("Failed to generate PDF")
+            if st.session_state.get('pdf_ready') and st.session_state.get('pdf_bytes'):
+                st.download_button(
+                    label="⬇️ Click to Download PDF",
+                    data=st.session_state['pdf_bytes'],
+                    file_name="cover_letter.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
         
         files = None
         if draft_type == 'email':

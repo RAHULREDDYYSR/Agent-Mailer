@@ -175,6 +175,23 @@ class APIClient:
         except requests.exceptions.RequestException:
             return {"has_github": False, "context_ready": False, "repos_summarised": 0}
 
+    def extract_jd_from_url(self, jd_url: str):
+        """Scrape a job posting URL and extract only the JD text via Tavily + LLM."""
+        url = f"{self.base_url}/generation/extract_jd_from_url"
+        data = {"jd_url": jd_url}
+        try:
+            response = requests.post(url, headers=self._get_headers(), data=data)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            detail = ""
+            if 'response' in locals() and response is not None:
+                try:
+                    detail = response.json().get("detail", response.text)
+                except Exception:
+                    detail = response.text
+            return {"error": str(e), "detail": detail}
+
     def scrape_github(self, github_url: str | None = None):
         """Manually trigger a GitHub README scrape (re-scrape or for a custom URL)."""
         url = f"{self.base_url}/generation/scrape_github"

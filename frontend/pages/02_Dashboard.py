@@ -20,8 +20,9 @@ if not st.session_state.get("access_token"):
     st.warning("⚠️ Please login to access the dashboard.")
     st.stop()
 
-# Fetch jobs for both tabs
+# Fetch jobs and contents for both tabs
 jobs = api.get_jobs()
+contents = api.get_all_generated_contents()
 
 # Navigation Tabs
 tab_jobs, tab_analytics = st.tabs(["📋 Jobs", "📈 Analytics"])
@@ -37,7 +38,7 @@ with tab_jobs:
         for job in jobs:
             with st.container():
                 st.markdown(f"""
-                <div class="premium-card">
+                <div class="premium-card" style="margin-bottom: -65px; padding-bottom: 85px; position: relative; z-index: 0;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div>
                             <h3 style="margin: 0 0 4px 0;">{job.get('title', 'Untitled')}</h3>
@@ -50,29 +51,13 @@ with tab_jobs:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                with st.expander("📄 View Details & Actions"):
-                    st.text_area("Job Description", job.get('jd_text', ''), height=100, disabled=True, key=f"jd_{job['id']}")
-                    
-                    if job.get('generated_context'):
-                        st.markdown("**Generated Context:**")
-                        st.json(job.get('generated_context'))
-                    
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        if st.button("📧 Email", key=f"email_{job['id']}", use_container_width=True):
-                            st.session_state.current_jd_id = job['id']
-                            st.session_state.dashboard_draft_type = "email"
-                            st.switch_page("pages/03_Generator.py")
-                    with col2:
-                        if st.button("💼 LinkedIn", key=f"linkedin_{job['id']}", use_container_width=True):
-                            st.session_state.current_jd_id = job['id']
-                            st.session_state.dashboard_draft_type = "linkedin_message"
-                            st.switch_page("pages/03_Generator.py")
-                    with col3:
-                        if st.button("📝 Cover Letter", key=f"cover_{job['id']}", use_container_width=True):
-                            st.session_state.current_jd_id = job['id']
-                            st.session_state.dashboard_draft_type = "cover_letter"
-                            st.switch_page("pages/03_Generator.py")
+                c1, c2, c3 = st.columns([0.03, 0.94, 0.03])
+                with c2:
+                    if st.button("👁️ View Details & Actions", key=f"view_{job['id']}", use_container_width=True):
+                        st.session_state.selected_job_id = job['id']
+                        st.switch_page("pages/05_Job_Details.py")
+                
+                st.markdown("<br><br>", unsafe_allow_html=True)
     else:
         st.markdown("""
         <div class="premium-card" style="text-align: center; padding: 48px;">
@@ -86,7 +71,6 @@ with tab_jobs:
 # ANALYTICS TAB
 # ──────────────────────────────────────────────────────────────────────────────
 with tab_analytics:
-    contents = api.get_all_generated_contents()
     all_companies = list(set([j.get('company', 'Unknown') for j in jobs])) if jobs else []
     
     if contents or jobs:

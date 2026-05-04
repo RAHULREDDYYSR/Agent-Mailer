@@ -6,20 +6,16 @@ load_dotenv()
 tavily_client = TavilyClient()
 
 def internet_search(
-    query: str,
-    max_results: int = 3,
-    topic: Literal["general", "news", "finance"] = "general",
-    include_raw_content: bool = False,
+    query: str
 ):
     """Run a web search"""
-    return tavily_client.search(
-        query,
-        max_results=max_results,
-        include_answer='advanced',
-        topic=topic
+    return tavily_client.extract(
+        urls=[query],
+        extract_depth='advanced'
+        
     )
 
 
 if __name__ == "__main__":
-    result = internet_search(query="What is the capital of France?")
-    print(result['answer'])
+    result = internet_search(query="https://www.accenture.com/in-en/careers/jobdetails?id=R00268097_en&title=S%26C+Global+Network+-+AI+-+CMT+Engineering+-Associate?")
+    print(result['results'])

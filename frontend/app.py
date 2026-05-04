@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import time
 
 # Set page config once at the top level
 st.set_page_config(
@@ -17,7 +18,8 @@ def load_css():
 
 load_css()
 
-from auth_utils import restore_session, logout_user
+from api import api
+from auth_utils import restore_session, logout_user, login_user
 
 def main():
     # Attempt to restore session from cookie
@@ -80,7 +82,7 @@ def main():
             """, unsafe_allow_html=True)
     else:
         st.markdown("""
-        <div style="text-align: center; padding: 80px 20px;">
+        <div style="text-align: center; padding: 40px 20px 20px;">
             <h1 style="font-size: 3rem; margin-bottom: 24px;">✉️ Agent Mailer</h1>
             <p style="font-size: 1.25rem; opacity: 0.7; max-width: 600px; margin: 0 auto 32px;">
                 AI-powered email generation tailored to your job applications. 
@@ -89,7 +91,73 @@ def main():
         </div>
         """, unsafe_allow_html=True)
         
-        st.warning("👆 Navigate to **Login** page to get started")
+        # Login / Register Forms
+        tab1, tab2 = st.tabs(["🔑 Login", "📝 Register"])
+
+        with tab1:
+            login_username = st.text_input("Username", key="login_user", placeholder="Enter your username")
+            login_password = st.text_input("Password", type="password", key="login_pass", placeholder="Enter your password")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            if st.button("Sign In →", type="primary", use_container_width=True):
+                if login_username and login_password:
+                    with st.spinner("Signing in..."):
+                        result = api.login(login_username, login_password)
+                        if "access_token" in result:
+                            login_user(result)
+                            st.success("Welcome back! Redirecting...")
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error(result.get("detail", "Login failed. Please check your credentials."))
+                else:
+                    st.warning("Please enter both username and password.")
+
+        with tab2:
+            with st.form("register_form"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    first_name = st.text_input("First Name", key="reg_fname", placeholder="John")
+                with col2:
+                    last_name = st.text_input("Last Name", key="reg_lname", placeholder="Doe")
+                    
+                reg_username = st.text_input("Username", key="reg_user", placeholder="Choose a username")
+                reg_email = st.text_input("Email", key="reg_email", placeholder="your@email.com")
+                reg_password = st.text_input("Password", type="password", key="reg_pass", placeholder="Create a secure password")
+                
+                col3, col4 = st.columns(2)
+                with col3:
+                    phone = st.text_input("Phone Number", key="reg_phone", placeholder="+1234567890")
+                with col4:
+                    linkedin = st.text_input("LinkedIn URL", key="reg_linkedin", placeholder="https://linkedin.com/in/...")
+                    
+                col5, col6 = st.columns(2)
+                with col5:
+                    github = st.text_input("GitHub URL", key="reg_github", placeholder="https://github.com/...")
+                with col6:
+                    portfolio = st.text_input("Portfolio URL", key="reg_portfolio", placeholder="https://myportfolio.com")
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                
+                submitted = st.form_submit_button("Create Account →", use_container_width=True)
+                
+                if submitted:
+                    if reg_username and reg_email and reg_password:
+                        with st.spinner("Creating your account..."):
+                            response = api.register(reg_username, reg_email, reg_password, first_name, last_name, phone, linkedin, github, portfolio)
+                            if response is True:
+                                st.success("🎉 Account created! Please sign in using the Login tab.")
+                                if github and github.strip():
+                                    st.info(
+                                        "🐙 **GitHub context is being built in the background.** "
+                                        "Your project READMEs are being scraped and summarised automatically — "
+                                        "check the Profile page after logging in to see the status."
+                                    )
+                            else:
+                                st.error(response.get("error", "Registration failed."))
+                    else:
+                        st.warning("Username, Email, and Password are required.")
 
 if __name__ == "__main__":
     main()

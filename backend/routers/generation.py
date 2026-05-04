@@ -15,11 +15,76 @@ from backend.utils.email_sender import send_email
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from backend.utils.pdf_generator import create_pdf
+from backend.graph.web_search_tool import internet_search
+from backend.graph.chains import llm
 
 router = APIRouter(prefix="/generation", tags=["generation"])
 
 user_dependency = Annotated[dict, Depends(get_current_user)]
 db_dependency = Annotated[AsyncSession, Depends(get_db)]
+
+
+@router.post('/extract_jd_from_url', status_code=status.HTTP_200_OK)
+async def extract_jd_from_url(
+    user: user_dependency,
+    jd_url: str = Form(..., description="URL of the job posting to scrape"),
+):
+    """
+    Scrape a job posting URL using Tavily and extract only the job description
+    text using the LLM, stripping out navigation, ads, and other irrelevant content.
+    """
+    # Step 1: Scrape the URL content via Tavily
+    try:
+        scraped = await run_in_threadpool(internet_search, jd_url)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to scrape URL: {exc}",
+        )
+
+    # Extract raw text from Tavily response
+    results = scraped.get("results", [])
+    if not results:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Could not extract any content from the provided URL. Please paste the job description manually.",
+        )
+    raw_text = results[0].get("raw_content") or results[0].get("text", "")
+    if not raw_text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="The scraped page returned empty content. Please paste the job description manually.",
+        )
+
+    # Step 2: Pass raw page content through LLM to extract only the JD
+    extraction_prompt = (
+        "You are a precise job-description extractor. "
+        "Given the raw text scraped from a job posting web page, extract ONLY the job description content. "
+        "Remove all navigation links, headers, footers, cookie banners, ads, sidebar content, "
+        "and any text that is not part of the actual job posting.\n\n"
+        "Return the clean job description including: job title, company name, location, "
+        "responsibilities, requirements/qualifications, benefits, and any other relevant job details.\n\n"
+        "If the page does not appear to contain a job description, reply with exactly: "
+        "NO_JD_FOUND\n\n"
+        f"--- RAW PAGE CONTENT ---\n{raw_text[:15000]}"
+    )
+
+    try:
+        llm_response = await llm.ainvoke(extraction_prompt)
+        extracted_jd = llm_response.content.strip()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"LLM extraction failed: {exc}",
+        )
+
+    if extracted_jd == "NO_JD_FOUND":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="The page does not appear to contain a job description. Please paste it manually.",
+        )
+
+    return {"extracted_jd": extracted_jd}
 
 
 @router.post('/context', status_code=status.HTTP_200_OK)
